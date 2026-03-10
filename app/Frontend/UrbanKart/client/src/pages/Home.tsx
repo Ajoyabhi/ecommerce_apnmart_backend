@@ -17,8 +17,6 @@ import {
 } from "@/components/ui/carousel";
 import { getMediaUrl } from "@/lib/utils";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
-
 const FALLBACK_HERO = {
   id: "fallback",
   title: "Summer Collection '24",
@@ -342,7 +340,7 @@ export default function Home() {
             >
               <div className="w-full h-full bg-card flex flex-col items-center justify-center gap-3 group-hover:bg-primary/5 transition-colors duration-300">
                 <img
-                  src={`${API_BASE}/static/ecommerce-icons/${cat.icon}`}
+                  src={getMediaUrl(`static/ecommerce-icons/${cat.icon}`)}
                   alt={cat.name}
                   className="w-16 h-16 md:w-20 md:h-20 object-contain"
                 />
