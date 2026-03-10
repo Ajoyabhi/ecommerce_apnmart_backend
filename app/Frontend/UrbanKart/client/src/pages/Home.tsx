@@ -329,7 +329,7 @@ export default function Home() {
             },
             {
               name: "Home Decor",
-              icon: "09-home-decor.png",
+              icon: "36-toys.png",
               href: "/shop?category=home-decor",
             },
           ].map((cat, i) => (
