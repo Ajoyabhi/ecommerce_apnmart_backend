@@ -2,9 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 const logger = require('./utils/logger');
 
 const app = express();
+
+// Serve ecommerce icon set as static assets so frontend can use them
+app.use(
+    '/static/ecommerce-icons',
+    express.static(path.join(__dirname, '..', 'product_images', 'ecommerce-icons'))
+);
 
 // CORS: allow frontend origin (required when frontend uses credentials: "include")
 const allowedOrigins = process.env.CORS_ORIGIN
@@ -23,7 +30,12 @@ const corsOptions = {
 };
 
 // Middlewares
-app.use(helmet()); // Security headers
+// Security headers (allow images/static assets to be loaded from other origins like Vite dev server)
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' }
+    })
+);
 app.use(cors(corsOptions)); // Enable CORS with allowed origins
 app.use(express.json()); // Body parser
 app.use(express.urlencoded({ extended: true }));

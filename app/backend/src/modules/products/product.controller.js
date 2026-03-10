@@ -61,6 +61,14 @@ exports.createProduct = async (req, res, next) => {
     }
 };
 
+function getSegmentPriorityFromSlug(slug) {
+    if (!slug || typeof slug !== 'string') return 99;
+    const s = slug.toLowerCase();
+    if (s === 'fashion' || s.startsWith('fashion-')) return 0;
+    if (s === 'beauty' || s.startsWith('beauty-')) return 1;
+    return 2;
+}
+
 exports.getProducts = async (req, res, next) => {
     try {
         const {
@@ -231,6 +239,21 @@ exports.getProducts = async (req, res, next) => {
                 skip,
                 take: limitNum
             });
+        }
+
+        // Reorder so that Fashion products come first, then Beauty, then others,
+        // while preserving the original order within each segment.
+        if (Array.isArray(products) && products.length > 1) {
+            const indexed = products.map((p, idx) => ({
+                p,
+                idx,
+                seg: getSegmentPriorityFromSlug(p.category?.slug)
+            }));
+            indexed.sort((a, b) => {
+                if (a.seg !== b.seg) return a.seg - b.seg;
+                return a.idx - b.idx;
+            });
+            products = indexed.map((x) => x.p);
         }
 
         // Attach primary rich content (images, description) for listing cards

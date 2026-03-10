@@ -1,0 +1,8 @@
+casual_shirts
+formal_shirts
+formal_pants
+jeans
+men_cargos
+printed_hoodies
+printed_tshirts
+solid_tshirts

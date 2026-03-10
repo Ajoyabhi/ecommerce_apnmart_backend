@@ -534,73 +534,25 @@ export default function Shop() {
           </aside>
 
           <div className="flex-1 space-y-6">
-            {subcategories.length > 0 && (() => {
-              const hasAnyImage = subcategories.some((s) => s.imageUrl);
-              return hasAnyImage ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="subcategory-pills">
-                  {subcategories.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => updateFilter("category", sub.slug)}
-                      className={cn(
-                        "group relative rounded-xl overflow-hidden border-2 transition-all text-left",
-                        activeSubSlug === sub.slug
-                          ? "border-primary ring-2 ring-primary/20"
-                          : "border-border hover:border-primary/40"
-                      )}
-                      data-testid={`pill-subcategory-${sub.slug}`}
-                    >
-                      {sub.imageUrl ? (
-                        <div className="aspect-[4/3] relative">
-                          <img
-                            src={getMediaUrl(sub.imageUrl)}
-                            alt={sub.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                          <span className={cn(
-                            "absolute bottom-0 left-0 right-0 px-3 py-2 text-sm font-semibold text-white truncate",
-                            activeSubSlug === sub.slug && "text-primary-foreground"
-                          )}>
-                            {sub.name}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className={cn(
-                          "aspect-[4/3] flex items-center justify-center bg-muted/50 px-3",
-                          activeSubSlug === sub.slug && "bg-primary/10"
-                        )}>
-                          <span className={cn(
-                            "text-sm font-semibold text-center",
-                            activeSubSlug === sub.slug ? "text-primary" : "text-foreground"
-                          )}>
-                            {sub.name}
-                          </span>
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2" data-testid="subcategory-pills">
-                  {subcategories.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => updateFilter("category", sub.slug)}
-                      className={cn(
-                        "px-4 py-2 rounded-full text-sm font-medium border transition-all",
-                        activeSubSlug === sub.slug
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-card hover:border-primary/50 hover:bg-primary/5"
-                      )}
-                      data-testid={`pill-subcategory-${sub.slug}`}
-                    >
-                      {sub.name}
-                    </button>
-                  ))}
-                </div>
-              );
-            })()}
+            {subcategories.length > 0 && (
+              <div className="flex flex-wrap gap-2" data-testid="subcategory-pills">
+                {subcategories.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => updateFilter("category", sub.slug)}
+                    className={cn(
+                      "px-4 py-2 rounded-full text-sm font-medium border transition-all",
+                      activeSubSlug === sub.slug
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card hover:border-primary/50 hover:bg-primary/5"
+                    )}
+                    data-testid={`pill-subcategory-${sub.slug}`}
+                  >
+                    {sub.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {loadingProductsOrInfinite ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
