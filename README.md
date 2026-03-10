@@ -17,7 +17,7 @@ The guide assumes:
 
 ## 1. High‑level architecture
 
-- **Backend (`backend/`)**
+- **Backend (`app/backend/`)**
   - Node.js + Express REST API
   - **PostgreSQL** via Prisma (`DATABASE_URL`)
   - **MongoDB** for content / banners (`MONGODB_URI`)
@@ -28,7 +28,7 @@ The guide assumes:
     - **SMTP / Brevo** for transactional email and OTP flows
   - Default port: **`5009`** (configurable via backend `.env`)
 
-- **Frontend (`Frontend/UrbanKart/`)**
+- **Frontend (`app/Frontend/UrbanKart/`)**
   - React + Vite SPA, consumes backend at `/api/v1`
   - Talks to backend through **`VITE_API_URL`** (e.g. `http://your-vps-ip:5009`)
   - Media base URL configured via **`VITE_MEDIA_BASE_URL`** (e.g. B2, Cloudinary)
@@ -163,13 +163,13 @@ cd ecommerce
 
 You should now have:
 
-- `backend/`
-- `Frontend/UrbanKart/`
+- `app/backend/`
+- `app/Frontend/UrbanKart/`
 - `deploy.sh`
 
 ---
 
-## 5. Backend configuration (`backend/.env`)
+## 5. Backend configuration (`app/backend/.env`)
 
 The backend uses **Prisma with PostgreSQL**, plus MongoDB, Redis, Stripe, Cloudinary, email, and Backblaze B2.  
 
@@ -178,7 +178,7 @@ The backend uses **Prisma with PostgreSQL**, plus MongoDB, Redis, Stripe, Cloudi
 On your VPS:
 
 ```bash
-cd ~/ecommerce/backend
+cd ~/ecommerce/app/backend
 cp .env.example .env  # or create manually
 ```
 
@@ -248,7 +248,7 @@ Then open `.env` and configure at minimum:
 
 ---
 
-## 6. Frontend configuration (`Frontend/UrbanKart/.env`)
+## 6. Frontend configuration (`app/Frontend/UrbanKart/.env`)
 
 The frontend is a Vite app that talks to the backend via `VITE_API_URL`.
 
@@ -257,7 +257,7 @@ The frontend is a Vite app that talks to the backend via `VITE_API_URL`.
 On your VPS:
 
 ```bash
-cd ~/ecommerce/Frontend/UrbanKart
+cd ~/ecommerce/app/Frontend/UrbanKart
 cp .env.example .env  # if present, or create manually
 ```
 
@@ -322,11 +322,11 @@ What `deploy.sh` does:
 1. Verifies `node` and `npm` are installed.
 2. Installs **pm2** globally if missing.
 3. **Backend**
-   - `cd backend`
+   - `cd app/backend`
    - `npm install`
    - `prisma db push` (via `npx prisma db push`) to sync the PostgreSQL schema with `DATABASE_URL`.
 4. **Frontend**
-   - `cd Frontend/UrbanKart`
+   - `cd app/Frontend/UrbanKart`
    - `npm install`
    - `npm run build` (Vite production build)
 5. **Process manager (pm2)**
@@ -471,7 +471,7 @@ After this, your setup should be:
 
 - Configure **databases** (Postgres, Mongo, Redis) and create the **PostgreSQL `DATABASE_URL`**.
 - Fill out **`backend/.env`** with DB URLs, JWT secrets, email/Stripe/media credentials, and CORS/FRONTEND URLs.
-- Set **`Frontend/UrbanKart/.env`** with `VITE_API_URL` (pointing to backend, port `5009` by default) and `VITE_MEDIA_BASE_URL`.
+- Set **`app/Frontend/UrbanKart/.env`** with `VITE_API_URL` (pointing to backend, port `5009` by default) and `VITE_MEDIA_BASE_URL`.
 - On your VPS, from the project root, run:
 
 ```bash

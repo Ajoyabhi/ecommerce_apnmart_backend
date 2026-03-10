@@ -23,7 +23,7 @@ if ! command -v pm2 >/dev/null 2>&1; then
 fi
 
 echo "=== Backend: installing dependencies ==="
-cd "${ROOT_DIR}/backend"
+cd "${ROOT_DIR}/app/backend"
 npm install
 
 echo "=== Backend: pushing Prisma schema to PostgreSQL (prisma db push) ==="
@@ -35,19 +35,19 @@ else
 fi
 
 echo "=== Frontend: installing dependencies ==="
-cd "${ROOT_DIR}/Frontend/UrbanKart"
+cd "${ROOT_DIR}/app/Frontend/UrbanKart"
 npm install
 
 echo "=== Frontend: building Vite client ==="
 npm run build
 
 echo "=== Starting backend with pm2 (name: ecommerce-backend) ==="
-cd "${ROOT_DIR}/backend"
+cd "${ROOT_DIR}/app/backend"
 pm2 delete ecommerce-backend >/dev/null 2>&1 || true
 pm2 start npm --name ecommerce-backend -- start
 
 echo "=== Starting frontend preview with pm2 (name: ecommerce-frontend) ==="
-cd "${ROOT_DIR}/Frontend/UrbanKart"
+cd "${ROOT_DIR}/app/Frontend/UrbanKart"
 pm2 delete ecommerce-frontend >/dev/null 2>&1 || true
 pm2 start npx --name ecommerce-frontend -- vite preview --host 0.0.0.0 --port 5008
 
