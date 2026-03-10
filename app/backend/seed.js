@@ -1635,6 +1635,9 @@ async function seedApparelFromImages() {
 
 const BEAUTY_JSON_PATH = process.env.BEAUTY_JSON_PATH || path.join(__dirname, 'product_images/makeup_data.json');
 const BEAUTY_SEED_LIMIT = process.env.BEAUTY_SEED_LIMIT ? parseInt(process.env.BEAUTY_SEED_LIMIT, 10) : null;
+const HOME_DECOR_SEED_LIMIT = process.env.HOME_DECOR_SEED_LIMIT
+    ? parseInt(process.env.HOME_DECOR_SEED_LIMIT, 10)
+    : null;
 
 function beautySlugify(str) {
     if (!str || typeof str !== 'string') return 'uncategorized';
@@ -1892,6 +1895,13 @@ async function seedCuratedHomeDecor() {
     if (!files || !files.length) {
         console.log('   ⚠️ No candle images found in', CANDLE_IMAGES_DIR);
         return;
+    }
+
+    if (HOME_DECOR_SEED_LIMIT && files.length > HOME_DECOR_SEED_LIMIT) {
+        files = files.slice(0, HOME_DECOR_SEED_LIMIT);
+        console.log(
+            `   ℹ️ HOME_DECOR_SEED_LIMIT=${HOME_DECOR_SEED_LIMIT} applied, using first ${files.length} candle images.`
+        );
     }
 
     const homeBrands = brandPools.home || ['CasaCraft', 'Hearth&Home', 'LuxeLoom', 'CookMate'];
