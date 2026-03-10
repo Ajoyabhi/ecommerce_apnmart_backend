@@ -1,0 +1,174 @@
+Updated Checkout Page Requirement (With Post Office Dropdown Logic)
+1️⃣ Pincode Auto-Fetch & Post Office Selection (Frontend Only)
+
+When the user enters a valid 6-digit Indian Pincode, the frontend must call:
+
+https://api.postalpincode.in/pincode/{PINCODE}
+2️⃣ Handling API Response Logic
+
+Since the API can return multiple Post Offices for a single pincode (as shown in your example), the following behavior must be implemented:
+
+📌 Step 1: Validate Response
+
+Check:
+
+Status === "Success"
+
+PostOffice array exists and length > 0
+
+If not:
+
+Show error: "Invalid or unsupported Pincode"
+
+Disable address auto-fill
+
+Prevent order submission
+
+3️⃣ Post Office Dropdown Requirement
+
+If multiple post offices are returned:
+
+✅ Required Frontend Behavior:
+
+Populate a Post Office dropdown
+
+Dropdown options should show:
+
+{Name} - {BranchType}
+Example:
+Alpha Greater Noida - Sub Post Office
+Kasna - Branch Post Office
+
+The dropdown should be:
+
+Disabled until valid pincode is entered
+
+Required field before placing order
+
+4️⃣ Auto-Fill Logic After Post Office Selection
+
+Once the user selects a Post Office from the dropdown:
+
+Extract and auto-fill the following fields:
+
+From selected PostOffice object:
+
+District → City field
+
+State → State field
+
+Country → Country field
+
+Example Mapping:
+selectedPostOffice.District  → City
+selectedPostOffice.State     → State
+selectedPostOffice.Country   → Country
+5️⃣ Special Handling Rules
+
+If only one PostOffice is returned:
+
+Auto-select it
+
+Auto-fill fields directly
+
+Hide dropdown (optional UX improvement)
+
+If multiple PostOffices:
+
+Show dropdown
+
+Do NOT auto-fill until user selects one
+
+Add loading spinner while fetching
+
+Add debounce (500–800ms) before calling API
+
+6️⃣ Updated Checkout Address Fields Flow
+Shipping Address Section Should Now Be:
+
+Address Line 1
+
+Address Line 2
+
+Pincode (triggers API)
+
+Post Office (dynamic dropdown)
+
+City (auto-filled & editable)
+
+State (auto-filled & editable)
+
+Country (default India, auto-filled)
+
+7️⃣ Validation Rules
+Frontend:
+
+Pincode must be 6 digits numeric
+
+Post Office must be selected (if multiple options)
+
+City/State/Country cannot be empty
+
+Disable "Place Order" if required fields missing
+
+Backend:
+
+Do NOT trust frontend auto-filled data
+
+Validate address fields
+
+Store:
+
+Selected Post Office Name
+
+District
+
+State
+
+Country
+
+Pincode
+
+8️⃣ Data to Be Saved in Order Table
+
+When order is created, save:
+
+full_name
+
+phone
+
+email
+
+address_line_1
+
+address_line_2
+
+pincode
+
+post_office_name
+
+district
+
+state
+
+country
+
+user_id (FK)
+
+order_items
+
+9️⃣ Updated Backend README Should Also Mention
+
+Add section:
+
+📌 Pincode Integration Logic
+
+API used
+
+Frontend-only call
+
+Post office dropdown handling
+
+Address extraction logic
+
+Validation and fallback behavior

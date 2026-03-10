@@ -1,0 +1,167 @@
+Please develop the Checkout Page for the application with the following requirements:
+
+1️⃣ User Authentication Requirement
+
+Only logged-in users should be allowed to access the checkout page.
+
+If a user attempts to proceed to checkout without logging in, they must be redirected to the login page.
+
+Once authenticated, the selected product(s) must be associated with that specific user account in the backend.
+
+Backend validation must ensure checkout cannot proceed without a valid session/token.
+
+2️⃣ Product–User Association
+
+When the user proceeds to checkout, the selected product(s) must be linked to the authenticated user in the database.
+
+Ensure proper order creation logic where:
+
+Order is mapped to user_id
+
+Cart items are converted into order items
+
+Data integrity is maintained
+
+3️⃣ Checkout Page Fields (Standard E-commerce Requirements)
+
+The checkout page must collect the following details:
+
+🔹 Customer Details
+
+Full Name
+
+Email Address
+
+Mobile Number
+
+🔹 Shipping Address
+
+Address Line 1
+
+Address Line 2
+
+City
+
+State
+
+Country
+
+Pincode
+
+🔹 Billing Address
+
+Same as Shipping (checkbox option)
+
+If unchecked, allow separate billing address entry
+
+🔹 Order Summary Section
+
+Product name(s)
+
+Quantity
+
+Individual price
+
+Subtotal
+
+Shipping charges
+
+Tax (if applicable)
+
+Grand total
+
+🔹 Payment Section
+
+Payment Method Selection
+
+Place Order Button
+
+4️⃣ Automatic Address Detection Using Pincode API (Frontend Requirement)
+
+Add a frontend API integration for automatic location detection based on pincode.
+
+📌 Requirement:
+
+When the user enters a valid Pincode, the frontend should automatically call the following API:
+
+https://api.postalpincode.in/pincode/{PINCODE}
+📌 Expected Behavior:
+
+On entering the pincode:
+
+Trigger API call
+
+Fetch location details
+
+Automatically populate:
+
+City
+
+State
+
+(Country can default to India if applicable)
+
+If the API returns invalid or no data:
+
+Show a proper error message (e.g., "Invalid Pincode")
+
+Prevent form submission until corrected
+
+📌 Important Notes:
+
+This API call should be made from the frontend only.
+
+Add debounce logic to avoid excessive API calls.
+
+Add loading state while fetching data.
+
+Validate that the pincode is numeric and of valid length before triggering API.
+
+5️⃣ Validation & Security
+Frontend:
+
+Required field validation
+
+Email format validation
+
+Mobile number format validation
+
+Pincode validation
+
+Disable "Place Order" if required fields are missing
+
+Backend:
+
+Validate user authentication
+
+Validate product IDs and pricing
+
+Prevent price manipulation from frontend
+
+Validate address data before order creation
+
+6️⃣ After Implementation – Backend README
+
+Once development is completed, create a Backend README that includes:
+
+Authentication flow for checkout
+
+API endpoints created
+
+Request & response payload structures
+
+Database schema updates
+
+Order creation logic
+
+User–order mapping logic
+
+Cart-to-order conversion logic
+
+Payment integration flow
+
+Address handling logic
+
+Error handling scenarios
+
+Security considerations

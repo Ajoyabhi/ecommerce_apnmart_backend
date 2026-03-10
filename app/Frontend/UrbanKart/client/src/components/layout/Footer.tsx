@@ -1,0 +1,80 @@
+import { Facebook, Twitter, Instagram, Youtube } from "lucide-react";
+
+export function Footer() {
+  return (
+    <footer className="bg-card border-t border-border mt-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
+          
+          <div className="lg:col-span-2">
+            <div className="font-display font-black text-2xl tracking-tighter flex items-center gap-1 mb-6">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground text-xl">A</span>
+              </div>
+              AnpaMart
+            </div>
+            <p className="text-muted-foreground mb-6 max-w-sm">
+              Your premium destination for fashion, lifestyle, and beauty. Curated collections for the modern aesthetic.
+            </p>
+            <div className="flex gap-4">
+              {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
+                <a key={i} href="#" className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300">
+                  <Icon className="w-5 h-5" />
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-display font-bold mb-6">Shop</h4>
+            <ul className="space-y-4 text-muted-foreground text-sm">
+              <li><a href="#" className="hover:text-primary transition-colors">Women's Fashion</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Men's Fashion</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Accessories</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">New Arrivals</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Sale & Offers</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-display font-bold mb-6">Help & Support</h4>
+            <ul className="space-y-4 text-muted-foreground text-sm">
+              <li><a href="#" className="hover:text-primary transition-colors">Track Order</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Returns & Exchanges</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Shipping Info</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Customer Service</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">FAQs</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-display font-bold mb-6">Newsletter</h4>
+            <p className="text-muted-foreground text-sm mb-4">
+              Subscribe to get special offers, free giveaways, and updates.
+            </p>
+            <form className="flex flex-col gap-3" onSubmit={(e) => e.preventDefault()}>
+              <input 
+                type="email" 
+                placeholder="Enter your email" 
+                className="bg-muted border-transparent px-4 py-3 rounded-xl text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <button className="bg-primary text-primary-foreground px-4 py-3 rounded-xl text-sm font-bold hover:bg-primary/90 transition-colors shadow-md">
+                Subscribe
+              </button>
+            </form>
+          </div>
+
+        </div>
+        
+        <div className="border-t border-border mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+          <p>© 2024 AnpaMart. All rights reserved.</p>
+          <div className="flex gap-6">
+            <a href="#" className="hover:text-primary">Privacy Policy</a>
+            <a href="#" className="hover:text-primary">Terms of Service</a>
+            <a href="#" className="hover:text-primary">Cookie Policy</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

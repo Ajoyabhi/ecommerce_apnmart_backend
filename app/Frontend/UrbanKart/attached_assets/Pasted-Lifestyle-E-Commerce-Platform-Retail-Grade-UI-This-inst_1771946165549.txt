@@ -1,0 +1,456 @@
+Lifestyle E-Commerce Platform (Retail-Grade UI)
+
+This instruction upgrades the platform to behave like large-scale Indian marketplaces such as Flipkart and Amazon in terms of navigation structure and merchandising layout.
+
+🟦 1. GLOBAL TOP CATEGORY BAR (Flipkart-Style)
+🎯 Objective:
+
+Implement a horizontal top category navigation bar below the header.
+
+This should always be visible on desktop and scrollable on mobile.
+
+🧭 Top Category Bar Structure
+
+Display main categories horizontally:
+
+Men
+
+Women
+
+Kids
+
+Fashion
+
+Beauty
+
+Appliances
+
+Home & Living
+
+Electronics
+
+Lifestyle
+
+Sports
+
+🖥 Desktop Behavior
+
+Horizontal bar
+
+Equal spacing
+
+Hover → Mega dropdown
+
+Mega dropdown shows:
+
+Subcategories
+
+Sub-subcategories
+
+Promotional image
+
+Featured collection links
+
+Example:
+
+Men
+→ Clothing
+→ Footwear
+→ Accessories
+→ Winter Collection
+
+📱 Mobile Behavior
+
+Horizontal scrollable category pills
+OR
+
+Dropdown inside hamburger menu
+
+🎨 UI Design Requirements
+
+Sticky positioning below header
+
+Subtle shadow
+
+White background
+
+Active category highlighted
+
+Smooth hover animation
+
+Scrollable if overflow
+
+🏠 2. HOMEPAGE COMPLETE LAYOUT (RETAIL STYLE)
+
+The homepage must look like a high-traffic retail store.
+
+🔝 Section 1: Top Category Cards (Visual Blocks)
+
+Below the top navigation bar, add visual category cards.
+
+Grid layout:
+
+Men
+
+Women
+
+Kids
+
+Beauty
+
+Home
+
+Appliances
+
+Electronics
+
+Sports
+
+Each card:
+
+Background image
+
+Category name overlay
+
+Hover zoom effect
+
+Click navigates to category page
+
+🎠 Section 2: Sling Banner / Carousel Slider
+
+Large full-width promotional slider.
+
+Requirements:
+
+Auto slide every 4 seconds
+
+Manual navigation arrows
+
+Dots indicator
+
+Swipe enabled (mobile)
+
+Dynamic from backend
+
+Example banners:
+
+Summer Sale 50% Off
+
+New Fashion Collection
+
+Festive Offer
+
+Clearance Sale
+
+🔥 Section 3: Trending Products
+
+Title: Trending Now
+
+Horizontal scrollable product list
+
+Show discount badge
+
+Show rating stars
+
+Quick add-to-cart button
+
+Wishlist icon
+
+Minimum 12 products displayed.
+
+⭐ Section 4: Featured Categories Block
+
+Show blocks like:
+
+Best of Fashion
+
+Top Beauty Picks
+
+Appliances Under ₹4999
+
+Kids Special
+
+Sustainable Living
+
+Each block:
+
+4–6 products
+
+Category link CTA
+
+“View All” button
+
+💎 Section 5: Deals of the Day
+
+Countdown timer
+
+Discount highlighted
+
+Limited stock indicator
+
+🆕 Section 6: New Arrivals
+
+Grid layout (8–16 products)
+
+🎁 Section 7: Recommended For You
+
+Based on:
+
+Category browsing
+
+Wishlist
+
+Purchase history
+
+📦 Section 8: Brand Showcase
+
+Horizontal scroll:
+
+Nike
+
+Puma
+
+Adidas
+
+Levi’s
+
+Boat
+
+Philips
+
+(Brands must be dynamic from backend)
+
+📰 Section 9: Promotional Banners (Mid Page)
+
+Two-column banners:
+
+Left: Fashion Sale
+
+Right: Electronics Deal
+
+📬 Section 10: Newsletter + App Download Section
+
+Include:
+
+Email input
+
+App store badges
+
+Social icons
+
+🛍 3. CATEGORY PAGE (UPGRADED RETAIL BEHAVIOR)
+
+Must support:
+
+Top Section:
+
+Category banner
+
+Breadcrumb navigation
+
+Example:
+Home > Men > Clothing > Shirts
+
+Layout:
+
+Left Filter Panel
+Right Product Grid (4 columns desktop)
+
+Filters:
+
+Price Range Slider
+
+Brand
+
+Size
+
+Color
+
+Material
+
+Ratings
+
+Discount %
+
+Availability
+
+Sorting:
+
+Dropdown:
+
+Popularity
+
+Newest
+
+Price Low → High
+
+Price High → Low
+
+Discount
+
+Product Card Must Show:
+
+Image
+
+Secondary image on hover
+
+Rating
+
+Price + Strike price
+
+Discount %
+
+Wishlist icon
+
+Add to cart
+
+Delivery estimate tag
+
+👕 4. PRODUCT DETAIL PAGE (ENHANCED)
+
+Must feel premium.
+
+Include:
+
+Image gallery (thumbnail left)
+
+Zoom functionality
+
+Variant swatches (color circles)
+
+Size buttons
+
+Stock indicator
+
+Delivery date check
+
+COD availability
+
+EMI option display
+
+Offers section
+
+Coupon display
+
+Ratings summary with bar graph
+
+Customer reviews with images
+
+Q&A section
+
+Similar products
+
+Frequently bought together
+
+🛒 5. CART DROPDOWN (MINI CART)
+
+When clicking cart icon:
+
+Show mini cart dropdown
+
+Show items
+
+Show subtotal
+
+Checkout button
+
+🎨 6. VISUAL POLISH REQUIREMENTS
+
+Must include:
+
+Skeleton loaders
+
+Smooth animations
+
+Toast notifications
+
+Lazy loaded images
+
+Image placeholders
+
+Responsive grid breakpoints
+
+Proper spacing
+
+Premium typography
+
+📊 7. SCALE EXPECTATION
+
+Frontend must support:
+
+100+ products
+
+10+ main categories
+
+Deep subcategories
+
+Brand-based filtering
+
+Variant-level filtering
+
+Discount system
+
+Coupon UI
+
+⚙ 8. STATE MANAGEMENT UPDATE
+
+Redux:
+
+Cart
+
+Wishlist
+
+Auth
+
+UI
+
+React Query:
+
+Products
+
+Categories
+
+Brands
+
+Orders
+
+Reviews
+
+Dashboard stats
+
+🧠 9. PERFORMANCE RULES
+
+Debounced search
+
+Pagination
+
+Lazy route loading
+
+Code splitting
+
+Image optimization
+
+Memoization for large lists
+
+🚨 FINAL INSTRUCTION
+
+This must feel like:
+
+Large-scale Indian marketplace
+
+Retail production-grade UI
+
+Not an MVP demo
+
+Not decor-only
+
+Not static seeded data
+
+The homepage must be:
+
+✔ Rich
+✔ Merchandising-focused
+✔ Category-heavy
+✔ Banner-driven
+✔ Product-dense
+✔ Highly interactive
