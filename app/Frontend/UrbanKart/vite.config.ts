@@ -38,4 +38,7 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  preview: {
+    allowedHosts: ["store.anpamart.com"],
+  },
 });
