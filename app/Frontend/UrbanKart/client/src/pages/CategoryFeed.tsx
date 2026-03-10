@@ -5,6 +5,22 @@ import { ChevronRight, Home, ArrowRight, Sparkles, TrendingUp, Tag } from "lucid
 import { cn, formatPrice, getMediaUrl } from "@/lib/utils";
 import type { CategoryFeedSection, CategoryFeedItem } from "@/api/types";
 
+const CATEGORY_ICON_MAP: Record<string, string> = {
+  // Fashion root subcategories
+  "fashion-men": "static/ecommerce-icons/11-men-clothing.png",
+  "fashion-women": "static/ecommerce-icons/12-women-clothing.png",
+  "fashion-boys": "static/ecommerce-icons/13-kids-clothing.png",
+  "fashion-girls": "static/ecommerce-icons/13-kids-clothing.png",
+
+  // Beauty root
+  beauty: "static/ecommerce-icons/26-makeup.png",
+
+  // Home root subcategories
+  "home-kitchen": "static/ecommerce-icons/21-cookware.png",
+  "home-decor": "static/ecommerce-icons/18-furniture.png",
+  "home-furnishing": "static/ecommerce-icons/19-sofas.png",
+};
+
 export default function CategoryFeed() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug || "";
@@ -74,33 +90,41 @@ export default function CategoryFeed() {
 
       {subcategories.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {subcategories.map((sub) => (
-              <Link
-                key={sub.id}
-                href={`/shop?category=${slug}&subcategory=${sub.slug}`}
-                className="group bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
-                data-testid={`card-subcategory-${sub.slug}`}
-              >
-                {sub.imageUrl ? (
-                  <div className="aspect-square relative overflow-hidden">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {subcategories.map((sub) => {
+              const iconPath = CATEGORY_ICON_MAP[sub.slug];
+              return (
+                <Link
+                  key={sub.id}
+                  href={`/shop?category=${slug}&subcategory=${sub.slug}`}
+                  className="group bg-card border border-border rounded-2xl px-3 py-4 flex flex-col items-center justify-center gap-2 hover:border-primary/60 hover:shadow-md transition-all"
+                  data-testid={`card-subcategory-${sub.slug}`}
+                >
+                  {iconPath ? (
+                    <img
+                      src={getMediaUrl(iconPath)}
+                      alt={sub.name}
+                      className="w-10 h-10 md:w-12 md:h-12 object-contain"
+                    />
+                  ) : sub.imageUrl ? (
                     <img
                       src={getMediaUrl(sub.imageUrl)}
                       alt={sub.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-10 h-10 md:w-12 md:h-12 rounded-md object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <span className="absolute bottom-2 left-2 right-2 text-white text-xs font-semibold truncate">
-                      {sub.name}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="aspect-square flex items-center justify-center bg-muted/50 group-hover:bg-primary/5 transition-colors p-3">
-                    <span className="text-sm font-semibold text-center text-foreground">{sub.name}</span>
-                  </div>
-                )}
-              </Link>
-            ))}
+                  ) : (
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted flex items-center justify-center">
+                      <span className="text-sm font-semibold text-muted-foreground">
+                        {sub.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-xs md:text-sm font-medium text-center text-foreground line-clamp-2">
+                    {sub.name}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
