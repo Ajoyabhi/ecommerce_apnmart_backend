@@ -18,6 +18,8 @@ const STATIC_NAV_END = [
 ];
 type NavItem = { label: string; href: string; hasMega: boolean; slug?: string };
 
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 export function Header() {
   const [, setLocation] = useLocation();
   const { getCartCount, openCart } = useCart();
@@ -138,11 +140,14 @@ export function Header() {
               >
                 <Menu className="w-6 h-6" />
               </button>
-              <Link href="/" className="font-display font-black text-2xl tracking-tighter shrink-0 flex items-center gap-1">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground text-xl">A</span>
-                </div>
-                AnpaMart
+              <Link href="/" className="font-display font-black text-2xl tracking-tighter shrink-0 flex items-center gap-0">
+                <img
+                  src={`${API_BASE}/static/brand_logo/apnamart_logo.png`}
+                  alt="Apnamart"
+                  className="h-24 w-24 object-cover rounded-lg"
+                  style={{ objectPosition: 'center top' }}
+                />
+                <span className="hidden sm:inline">Apnamart</span>
               </Link>
             </div>
 

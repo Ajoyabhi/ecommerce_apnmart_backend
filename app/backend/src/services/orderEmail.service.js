@@ -109,7 +109,7 @@ function orderSummaryTable(order) {
 }
 
 function buildOrderConfirmationHtml(order) {
-    const storeName = process.env.EMAIL_FROM_NAME || 'AnpaMart';
+    const storeName = process.env.EMAIL_FROM_NAME || 'Apnamart';
     const esc = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const orderNum = esc(order.orderNumber);
     const items = order.items || [];
@@ -195,7 +195,7 @@ function buildOrderConfirmationHtml(order) {
               <p style="margin:0 0 8px 0;font-size:18px;font-weight:600;color:#111827;">Thank you for your order!</p>
               <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#6b7280;">We've received your order and will process it shortly. Order reference: <strong style="color:#374151;">${orderNum}</strong></p>
               ${orderDetailsBlock}
-              <p style="margin:24px 0 0 0;font-size:14px;color:#6b7280;line-height:1.5;">If you have any questions, reply to this email or contact <a href="mailto:support@anpamart.com" style="color:#2563eb;text-decoration:none;">support@anpamart.com</a>.</p>
+              <p style="margin:24px 0 0 0;font-size:14px;color:#6b7280;line-height:1.5;">If you have any questions, reply to this email or contact <a href="mailto:support@apnamart.com" style="color:#2563eb;text-decoration:none;">support@apnamart.com</a>.</p>
             </td>
           </tr>
           <tr>
@@ -213,7 +213,7 @@ function buildOrderConfirmationHtml(order) {
 }
 
 function buildOrderStatusHtml(order, newStatus, trackingNumber = null) {
-    const storeName = process.env.EMAIL_FROM_NAME || 'AnpaMart';
+    const storeName = process.env.EMAIL_FROM_NAME || 'Apnamart';
     const esc = (s) => String(s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const orderNum = esc(order.orderNumber);
     const statusLabel = {
@@ -353,7 +353,7 @@ function buildOrderStatusHtml(order, newStatus, trackingNumber = null) {
               <p style="margin:0;font-size:16px;line-height:1.6;color:#374151;">${message}</p>
               ${trackingBlock}
               ${orderDetailsBlock}
-              <p style="margin:24px 0 0 0;font-size:14px;color:#6b7280;line-height:1.5;">Thank you for shopping with us. If you have any questions, reply to this email or contact <a href="mailto:support@anpamart.com" style="color:#2563eb;text-decoration:none;">support@anpamart.com</a>.</p>
+              <p style="margin:24px 0 0 0;font-size:14px;color:#6b7280;line-height:1.5;">Thank you for shopping with us. If you have any questions, reply to this email or contact <a href="mailto:support@apnamart.com" style="color:#2563eb;text-decoration:none;">support@apnamart.com</a>.</p>
             </td>
           </tr>
           <tr>

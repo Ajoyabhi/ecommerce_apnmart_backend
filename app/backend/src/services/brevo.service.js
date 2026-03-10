@@ -15,7 +15,7 @@ function getBrevoConfig() {
 }
 
 function buildOtpEmailHtml(otp, options = {}) {
-    const storeName = (process.env.EMAIL_FROM_NAME || 'AnpaMart').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const storeName = (process.env.EMAIL_FROM_NAME || 'Apnamart').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const title = options.title || 'Verification code';
     const validity = options.validity || '10 minutes';
     const subtitle = options.subtitle || 'Use this code to complete your verification.';

@@ -13,6 +13,12 @@ app.use(
     express.static(path.join(__dirname, '..', 'product_images', 'ecommerce-icons'))
 );
 
+// Serve brand logo assets (e.g. Apnamart logo) as static files
+app.use(
+    '/static/brand_logo',
+    express.static(path.join(__dirname, '..', 'product_images', 'brand_logo'))
+);
+
 // CORS: allow frontend origin (required when frontend uses credentials: "include")
 const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())

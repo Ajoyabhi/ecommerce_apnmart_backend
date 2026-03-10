@@ -160,7 +160,7 @@ export default function SignIn() {
         <CardHeader className="space-y-1 text-center">
           <Link href="/">
             <CardTitle className="text-2xl font-display font-black tracking-tight cursor-pointer hover:opacity-80">
-              AnpaMart
+              Apnamart
             </CardTitle>
           </Link>
           <CardDescription>

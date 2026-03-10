@@ -32,6 +32,12 @@ import AccountAddresses from "@/pages/account/Addresses";
 import AccountPayments from "@/pages/account/Payments";
 import AccountReturns from "@/pages/account/Returns";
 import AccountNotifications from "@/pages/account/Notifications";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
+import CookiePolicy from "@/pages/CookiePolicy";
+import ReturnsExchanges from "@/pages/ReturnsExchanges";
+import CustomerService from "@/pages/CustomerService";
+import Faqs from "@/pages/Faqs";
 
 function ProtectedUser({ component: Component }: { component: () => JSX.Element }) {
   return (
@@ -80,6 +86,12 @@ function StorefrontRouter() {
           <Route path="/account/notifications">
             {() => <ProtectedUser component={AccountNotifications} />}
           </Route>
+          <Route path="/privacy-policy" component={PrivacyPolicy} />
+          <Route path="/terms-of-service" component={TermsOfService} />
+          <Route path="/cookie-policy" component={CookiePolicy} />
+          <Route path="/returns-exchanges" component={ReturnsExchanges} />
+          <Route path="/customer-service" component={CustomerService} />
+          <Route path="/faqs" component={Faqs} />
           <Route component={NotFound} />
         </Switch>
       </main>

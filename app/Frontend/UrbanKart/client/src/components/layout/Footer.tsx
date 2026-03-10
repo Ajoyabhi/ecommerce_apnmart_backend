@@ -1,4 +1,5 @@
 import { Facebook, Twitter, Instagram, Youtube } from "lucide-react";
+import { Link } from "wouter";
 
 export function Footer() {
   return (
@@ -11,7 +12,7 @@ export function Footer() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground text-xl">A</span>
               </div>
-              AnpaMart
+              Apnamart
             </div>
             <p className="text-muted-foreground mb-6 max-w-sm">
               Your premium destination for fashion, lifestyle, and beauty. Curated collections for the modern aesthetic.
@@ -28,22 +29,62 @@ export function Footer() {
           <div>
             <h4 className="font-display font-bold mb-6">Shop</h4>
             <ul className="space-y-4 text-muted-foreground text-sm">
-              <li><a href="#" className="hover:text-primary transition-colors">Women's Fashion</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Men's Fashion</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Accessories</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">New Arrivals</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Sale & Offers</a></li>
+              <li>
+                <Link href="/shop?category=fashion-women" className="hover:text-primary transition-colors">
+                  Women&apos;s Fashion
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop?category=fashion-men" className="hover:text-primary transition-colors">
+                  Men&apos;s Fashion
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop?category=beauty" className="hover:text-primary transition-colors">
+                  Beauty &amp; Accessories
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop?sort=newest" className="hover:text-primary transition-colors">
+                  New Arrivals
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop?featured=true" className="hover:text-primary transition-colors">
+                  Sale &amp; Offers
+                </Link>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-display font-bold mb-6">Help & Support</h4>
             <ul className="space-y-4 text-muted-foreground text-sm">
-              <li><a href="#" className="hover:text-primary transition-colors">Track Order</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Returns & Exchanges</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Shipping Info</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Customer Service</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">FAQs</a></li>
+              <li>
+                <Link href="/account/orders" className="hover:text-primary transition-colors">
+                  Track Order
+                </Link>
+              </li>
+              <li>
+                <Link href="/returns-exchanges" className="hover:text-primary transition-colors">
+                  Returns &amp; Exchanges
+                </Link>
+              </li>
+              <li>
+                <Link href="/shop" className="hover:text-primary transition-colors">
+                  Shipping Info
+                </Link>
+              </li>
+              <li>
+                <Link href="/customer-service" className="hover:text-primary transition-colors">
+                  Customer Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/faqs" className="hover:text-primary transition-colors">
+                  FAQs
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -67,11 +108,17 @@ export function Footer() {
         </div>
         
         <div className="border-t border-border mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© 2024 AnpaMart. All rights reserved.</p>
+          <p>© 2024 Apnamart. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-primary">Privacy Policy</a>
-            <a href="#" className="hover:text-primary">Terms of Service</a>
-            <a href="#" className="hover:text-primary">Cookie Policy</a>
+            <Link href="/privacy-policy" className="hover:text-primary">
+              Privacy Policy
+            </Link>
+            <Link href="/terms-of-service" className="hover:text-primary">
+              Terms of Service
+            </Link>
+            <Link href="/cookie-policy" className="hover:text-primary">
+              Cookie Policy
+            </Link>
           </div>
         </div>
       </div>
