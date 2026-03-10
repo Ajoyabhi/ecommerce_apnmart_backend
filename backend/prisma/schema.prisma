@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum AuthProvider {
+  local
+  google
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+  REFUNDED
+}
+
+enum NotificationType {
+  ORDER
+  PROMO
+  SYSTEM
+  RETURN
+}
+
+model User {
+  id               String       @id @default(uuid())
+  email            String       @unique
+  passwordHash     String?      // null for Google sign-in
+  name             String?      // full name (signup/OAuth); legacy use firstName+lastName
+  firstName        String       // required for existing/legacy
+  lastName         String
+  role             UserRole     @default(CUSTOMER)
+  isActive         Boolean      @default(true)
+  phone            String?
+  avatar           String?
+  provider         AuthProvider @default(local)
+  providerId       String?      // e.g. Google sub
+  isEmailVerified  Boolean      @default(false)
+  emailOtpHash     String?      // SHA-256 hash of OTP
+  otpExpiry        DateTime?
+  otpAttempts      Int          @default(0)
+  otpResendCount   Int          @default(0)
+  otpResendWindowStart DateTime? // for "max 3 resends per hour"
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  addresses        Address[]
+  orders           Order[]
+  cart             Cart?
+  wishlist         WishlistItem[]
+  savedCards       SavedCard[]
+  notifications    Notification[]
+  codOtps          CodOtp[]
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  country      String
+  isDefault    Boolean  @default(false)
+  label        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  imageUrl    String?
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id           String           @id @default(uuid())
+  sku          String           @unique
+  name         String
+  slug         String           @unique
+  basePrice    Decimal          @db.Decimal(10, 2)
+  categoryId   String
+  category     Category         @relation(fields: [categoryId], references: [id])
+  brand        String?          // optional brand slug/name for filtering
+  status       String           @default("draft") // draft, published, archived
+  isFeatured   Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  variants     ProductVariant[]
+  orderItems   OrderItem[]
+  wishlist     WishlistItem[]
+}
+
+model ProductVariant {
+  id              String      @id @default(uuid())
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku             String      @unique
+  name            String?     // e.g. "Red / M"
+  options         Json        // e.g. { color: "Red", size: "M" }
+  priceAdjustment Decimal     @default(0) @db.Decimal(10, 2)
+  isActive        Boolean     @default(true)
+  inventory       Inventory?
+  orderItems      OrderItem[]
+}
+
+model Inventory {
+  id            String         @id @default(uuid())
+  variantId     String         @unique
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity      Int            @default(0)
+  reservedQty   Int            @default(0)
+  lowThreshold  Int            @default(5)
+  warehouseLoc  String?
+  updatedAt     DateTime       @updatedAt
+}
+
+model Order {
+  id                    String      @id @default(uuid())
+  orderNumber           String      @unique
+  userId                String?
+  user                  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status                OrderStatus @default(PENDING)
+  paymentStatus         String      @default("unpaid")
+  paymentMethod         String?
+  subtotal              Decimal     @db.Decimal(10, 2)
+  taxAmount             Decimal     @default(0.00) @db.Decimal(10, 2)
+  shippingAmount        Decimal     @default(0.00) @db.Decimal(10, 2)
+  total                 Decimal     @db.Decimal(10, 2)
+  shippingAddress       Json
+  billingAddress        Json?
+  sameAsBilling         Boolean     @default(true)
+  adminNotes            String?     @db.Text
+  paymentIntentId       String?
+  trackingNumber        String?
+  returnEligible        Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  deliveredAt           DateTime?
+  items                 OrderItem[]
+}
+
+model OrderItem {
+  id           String         @id @default(uuid())
+  orderId      String
+  order        Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product        @relation(fields: [productId], references: [id])
+  variantId    String?
+  variant      ProductVariant? @relation(fields: [variantId], references: [id])
+  productName  String
+  productImage String?
+  variantName  String?
+  sku          String
+  quantity     Int
+  unitPrice    Decimal        @db.Decimal(10, 2)
+  totalPrice   Decimal        @db.Decimal(10, 2)
+  color        String?
+  size         String?
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  addedAt   DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model SavedCard {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  cardType    String
+  last4       String
+  expiryMonth Int
+  expiryYear  Int
+  holderName  String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+}
+
+model EmailLog {
+  id         String   @id @default(uuid())
+  emailType  String   // e.g. order_confirmation, order_status, cod_otp, admin_order_alert
+  recipient  String
+  status     String   // sent | failed
+  error      String?  @db.Text
+  createdAt  DateTime @default(now())
+}
+
+model CodOtp {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String?   // set after order is created (optional temp reference)
+  otpHash    String    // SHA-256 hash of OTP
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  isVerified Boolean   @default(false)
+  resendAt   DateTime? // rate limit: next resend allowed after this time
+  createdAt  DateTime  @default(now())
+}

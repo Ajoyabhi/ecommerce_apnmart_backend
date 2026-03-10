@@ -1,0 +1,273 @@
+{
+  "info": {
+    "name": "Ecommerce Backend API",
+    "description": "All API endpoints for the ecommerce backend (Express + Prisma).\n\n**Auth:** Use Register or Login to get `accessToken`, then set header `Authorization: Bearer {{accessToken}}` for protected routes.\n\n**Base URL:** Default `http://localhost:5000` (set in collection variables).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "id", "value": "" },
+    { "key": "slug", "value": "organic-linen-shirt-white" },
+    { "key": "sku", "value": "LS-WHT-01-M" },
+    { "key": "variantId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Check if the server is running."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Register a new user. Returns accessToken and refreshToken."
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@lifestyle.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Login. Returns accessToken and refreshToken. Use accessToken in Authorization header for protected routes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/categories",
+            "description": "Get all root categories with nested children. Public."
+          }
+        },
+        {
+          "name": "Create Category (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics\",\n  \"slug\": \"electronics\",\n  \"description\": \"Gadgets and devices\",\n  \"imageUrl\": \"https://example.com/img.jpg\",\n  \"sortOrder\": 0,\n  \"isActive\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/categories",
+            "description": "Create a category. Requires ADMIN role."
+          }
+        },
+        {
+          "name": "Update Category (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics Updated\",\n  \"slug\": \"electronics\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/categories/{{id}}",
+            "description": "Update a category by id. Requires ADMIN role."
+          }
+        },
+        {
+          "name": "Delete Category (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/categories/{{id}}",
+            "description": "Delete a category. Fails if category has products. Requires ADMIN role."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products?category=&featured=&status=published",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "products"],
+              "query": [
+                { "key": "category", "value": "", "description": "Filter by category slug" },
+                { "key": "featured", "value": "true", "description": "Filter featured products" },
+                { "key": "status", "value": "published", "description": "draft | published | archived" }
+              ]
+            },
+            "description": "List products. Public. Query: category (slug), featured (true/false), status."
+          }
+        },
+        {
+          "name": "Get Product by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/products/{{slug}}",
+            "description": "Get single product with category, variants, inventory, and richContent (Mongo). Public."
+          }
+        },
+        {
+          "name": "Create Product (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU-001\",\n  \"name\": \"Sample Product\",\n  \"slug\": \"sample-product\",\n  \"basePrice\": 29.99,\n  \"categoryId\": \"<category-uuid>\",\n  \"status\": \"published\",\n  \"isFeatured\": false,\n  \"descriptionHtml\": \"<p>Description</p>\",\n  \"lifestyleTags\": [\"tag1\"],\n  \"mediaGallery\": [{\n    \"url\": \"https://example.com/img.jpg\",\n    \"order\": 1,\n    \"is_primary\": true\n  }]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/products",
+            "description": "Create product in PostgreSQL + rich content in MongoDB. Requires ADMIN role. categoryId must be existing category UUID."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/cart",
+            "description": "Get current user's cart (Redis). Returns array of { sku, quantity }. Requires auth."
+          }
+        },
+        {
+          "name": "Add to Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"LS-WHT-01-M\",\n  \"quantity\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/cart/items",
+            "description": "Add or increment item in cart. sku = ProductVariant SKU. Requires auth."
+          }
+        },
+        {
+          "name": "Remove from Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/cart/items/{{sku}}",
+            "description": "Remove item by variant SKU. Requires auth."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Checkout Session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/payments/checkout",
+            "description": "Creates Stripe Checkout session from current cart. Returns { url, sessionId }. Requires auth. Redirect user to url."
+          }
+        },
+        {
+          "name": "Stripe Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Stripe-Signature", "value": "<stripe-signature>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/api/v1/payments/webhook",
+            "description": "Stripe webhook. Body must be raw JSON; Stripe sends signature in Stripe-Signature header. Usually configured in Stripe Dashboard."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Inventory",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/inventory",
+            "description": "List all inventory with variant and product. Requires ADMIN role."
+          }
+        },
+        {
+          "name": "Update Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 100\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/inventory/{{variantId}}",
+            "description": "Update inventory quantity for a variant. Requires ADMIN role."
+          }
+        },
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/admin/dashboard/stats",
+            "description": "Get dashboard stats: totalOrders, totalRevenue, lowStockCount. Requires ADMIN role."
+          }
+        }
+      ]
+    }
+  ]
+}
