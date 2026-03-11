@@ -164,6 +164,8 @@ export default function Shop() {
     return null;
   };
 
+  const isElectronicsSlug = (slug?: string | null) => slug === "electronics";
+
   const selectedCategory = useMemo(
     () => (filters.category ? findCategoryBySlug(categories, filters.category) : null),
     [categories, filters.category]
@@ -455,25 +457,37 @@ export default function Shop() {
                     const isExpanded = expandedCats.has(cat.slug);
                     const isParentActive = filters.category === cat.slug;
                     const isChildActive = cat.children?.some((c) => c.slug === filters.category);
+                    const isElectronics = isElectronicsSlug(cat.slug);
 
                     return (
                       <div key={cat.id}>
                         <div className="flex items-center">
-                          <button
-                            onClick={() => updateFilter("category", cat.slug)}
-                            className={cn(
-                              "flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                              isParentActive
-                                ? "bg-primary/10 text-primary font-semibold"
-                                : isChildActive
-                                  ? "text-foreground font-medium"
-                                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            )}
-                            data-testid={`filter-category-${cat.slug}`}
-                          >
-                            {cat.name}
-                          </button>
-                          {hasChildren && (
+                          {isElectronics ? (
+                            <span
+                              className={cn(
+                                "flex-1 text-left px-3 py-2 rounded-lg text-sm text-muted-foreground cursor-default select-none"
+                              )}
+                              data-testid={`filter-category-${cat.slug}`}
+                            >
+                              {cat.name}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => updateFilter("category", cat.slug)}
+                              className={cn(
+                                "flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                                isParentActive
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : isChildActive
+                                    ? "text-foreground font-medium"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                              )}
+                              data-testid={`filter-category-${cat.slug}`}
+                            >
+                              {cat.name}
+                            </button>
+                          )}
+                          {hasChildren && !isElectronics && (
                             <button
                               onClick={() => toggleCatExpand(cat.slug)}
                               className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground"
@@ -488,23 +502,34 @@ export default function Shop() {
                           )}
                         </div>
 
-                        {hasChildren && isExpanded && (
+                        {hasChildren && isExpanded && !isElectronics && (
                           <div className="ml-3 pl-3 border-l border-border space-y-0.5 mt-0.5">
-                            {cat.children!.map((sub) => (
-                              <button
-                                key={sub.id}
-                                onClick={() => updateFilter("category", sub.slug)}
-                                className={cn(
-                                  "w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors",
-                                  filters.category === sub.slug
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                )}
-                                data-testid={`filter-category-${sub.slug}`}
-                              >
-                                {sub.name}
-                              </button>
-                            ))}
+                            {cat.children!.map((sub) => {
+                              const isSubElectronics = isElectronicsSlug(sub.slug);
+                              return isSubElectronics ? (
+                                <span
+                                  key={sub.id}
+                                  className="w-full block text-left px-3 py-1.5 rounded-lg text-sm text-muted-foreground cursor-default select-none"
+                                  data-testid={`filter-category-${sub.slug}`}
+                                >
+                                  {sub.name}
+                                </span>
+                              ) : (
+                                <button
+                                  key={sub.id}
+                                  onClick={() => updateFilter("category", sub.slug)}
+                                  className={cn(
+                                    "w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors",
+                                    filters.category === sub.slug
+                                      ? "bg-primary/10 text-primary font-semibold"
+                                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  )}
+                                  data-testid={`filter-category-${sub.slug}`}
+                                >
+                                  {sub.name}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -536,21 +561,34 @@ export default function Shop() {
           <div className="flex-1 space-y-6">
             {subcategories.length > 0 && (
               <div className="flex flex-wrap gap-2" data-testid="subcategory-pills">
-                {subcategories.map((sub) => (
-                  <button
-                    key={sub.id}
-                    onClick={() => updateFilter("category", sub.slug)}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-sm font-medium border transition-all",
-                      activeSubSlug === sub.slug
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card hover:border-primary/50 hover:bg-primary/5"
-                    )}
-                    data-testid={`pill-subcategory-${sub.slug}`}
-                  >
-                    {sub.name}
-                  </button>
-                ))}
+                {subcategories.map((sub) => {
+                  const isSubElectronics = isElectronicsSlug(sub.slug);
+                  return isSubElectronics ? (
+                    <span
+                      key={sub.id}
+                      className={cn(
+                        "px-4 py-2 rounded-full text-sm font-medium border border-border bg-card text-muted-foreground cursor-default select-none"
+                      )}
+                      data-testid={`pill-subcategory-${sub.slug}`}
+                    >
+                      {sub.name}
+                    </span>
+                  ) : (
+                    <button
+                      key={sub.id}
+                      onClick={() => updateFilter("category", sub.slug)}
+                      className={cn(
+                        "px-4 py-2 rounded-full text-sm font-medium border transition-all",
+                        activeSubSlug === sub.slug
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-card hover:border-primary/50 hover:bg-primary/5"
+                      )}
+                      data-testid={`pill-subcategory-${sub.slug}`}
+                    >
+                      {sub.name}
+                    </button>
+                  );
+                })}
               </div>
             )}
 

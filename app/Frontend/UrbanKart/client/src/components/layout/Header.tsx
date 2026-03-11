@@ -78,6 +78,11 @@ export function Header() {
     return [...STATIC_NAV_START, ...fromApi, ...STATIC_NAV_END];
   }, [menuCategories]);
 
+  const isElectronicsNavItem = (item: NavItem) => item.slug === "electronics";
+
+  const isComingSoonHomeSubcategory = (parentSlug?: string | null, subSlug?: string | null) =>
+    parentSlug === "home" && (subSlug === "home-kitchen" || subSlug === "home-furnishing");
+
   const findMenuCategory = useCallback(
     (slug: string): MenuCategory | null => {
       return menuCategories.find((c) => c.slug === slug) || null;
@@ -124,7 +129,10 @@ export function Header() {
   return (
     <>
       <div className="bg-primary text-primary-foreground text-xs py-2 px-4 text-center font-medium tracking-wide">
-        Free express delivery on orders over ₹2,000. <span className="underline cursor-pointer">Shop Now</span>
+        Free express delivery on orders over ₹1,000.{" "}
+        <Link href="/shop" className="underline cursor-pointer">
+          Shop Now
+        </Link>
       </div>
 
       <header className="sticky top-0 z-40 glass-header shadow-sm">
@@ -311,30 +319,44 @@ export function Header() {
         <div className="border-t border-border/50 bg-background/50 hidden md:block">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-              {navItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="relative"
-                  onMouseEnter={() => item.hasMega && item.slug && handleMegaEnter(item.slug)}
-                  onMouseLeave={() => item.hasMega && handleMegaLeave()}
-                >
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-1 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
-                      activeMega === item.slug
-                        ? "text-primary border-primary"
-                        : "text-muted-foreground border-transparent hover:text-primary hover:border-primary"
-                    )}
-                    data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+              {navItems.map((item) => {
+                const isElectronics = isElectronicsNavItem(item);
+                return (
+                  <div
+                    key={item.label}
+                    className="relative"
+                    onMouseEnter={() => item.hasMega && item.slug && !isElectronics && handleMegaEnter(item.slug)}
+                    onMouseLeave={() => item.hasMega && !isElectronics && handleMegaLeave()}
                   >
-                    {item.label}
-                    {item.hasMega && (
-                      <ChevronDown className={cn("w-3 h-3 transition-transform", activeMega === item.slug && "rotate-180")} />
+                    {isElectronics ? (
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 text-muted-foreground cursor-default select-none"
+                        )}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        {item.label}
+                      </span>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-1 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+                          activeMega === item.slug
+                            ? "text-primary border-primary"
+                            : "text-muted-foreground border-transparent hover:text-primary hover:border-primary"
+                        )}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        {item.label}
+                        {item.hasMega && (
+                          <ChevronDown className={cn("w-3 h-3 transition-transform", activeMega === item.slug && "rotate-180")} />
+                        )}
+                      </Link>
                     )}
-                  </Link>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </nav>
           </div>
         </div>
@@ -347,34 +369,53 @@ export function Header() {
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <div className="grid grid-cols-5 gap-8">
-                {megaCategory.subcategories.map((sub) => (
-                  <div key={sub.id}>
-                    <Link
-                      href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}`}
-                      className="font-semibold text-sm text-foreground hover:text-primary transition-colors block mb-3 uppercase tracking-wider"
-                      onClick={() => setActiveMega(null)}
-                      data-testid={`mega-sub-${sub.slug}`}
-                    >
-                      {sub.name}
-                    </Link>
-                    {sub.sub_subcategories && sub.sub_subcategories.length > 0 && (
-                      <ul className="space-y-2">
-                        {sub.sub_subcategories.map((child) => (
-                          <li key={child.id}>
-                            <Link
-                              href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}&sub_subcategory=${child.slug}`}
-                              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                              onClick={() => setActiveMega(null)}
-                              data-testid={`mega-child-${child.slug}`}
-                            >
-                              {child.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
+                {megaCategory.subcategories.map((sub) => {
+                  const isComingSoon = isComingSoonHomeSubcategory(megaCategory.slug, sub.slug);
+                  return (
+                    <div key={sub.id}>
+                      {isComingSoon ? (
+                        <>
+                          <div
+                            className="font-semibold text-sm text-muted-foreground block mb-1 uppercase tracking-wider cursor-default select-none"
+                            data-testid={`mega-sub-${sub.slug}`}
+                          >
+                            {sub.name}
+                          </div>
+                          <div className="text-xs font-medium text-primary/80 uppercase tracking-widest">
+                            Coming soon
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}`}
+                            className="font-semibold text-sm text-foreground hover:text-primary transition-colors block mb-3 uppercase tracking-wider"
+                            onClick={() => setActiveMega(null)}
+                            data-testid={`mega-sub-${sub.slug}`}
+                          >
+                            {sub.name}
+                          </Link>
+                          {sub.sub_subcategories && sub.sub_subcategories.length > 0 && (
+                            <ul className="space-y-2">
+                              {sub.sub_subcategories.map((child) => (
+                                <li key={child.id}>
+                                  <Link
+                                    href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}&sub_subcategory=${child.slug}`}
+                                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                                    onClick={() => setActiveMega(null)}
+                                    data-testid={`mega-child-${child.slug}`}
+                                  >
+                                    {child.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {megaCategory.imageUrl && (
                   <div className="col-span-1 relative rounded-xl overflow-hidden">
@@ -418,6 +459,7 @@ export function Header() {
             </div>
             <nav className="py-2">
               {navItems.map((item) => {
+                const isElectronics = isElectronicsNavItem(item);
                 const cat = item.slug ? findMenuCategory(item.slug) : null;
                 const hasSubs = cat?.subcategories && cat.subcategories.length > 0;
                 const isExpanded = item.slug ? mobileExpanded.has(item.slug) : false;
@@ -425,14 +467,20 @@ export function Header() {
                 return (
                   <div key={item.label}>
                     <div className="flex items-center">
-                      <Link
-                        href={item.href}
-                        className="flex-1 px-5 py-3 text-sm font-medium text-foreground hover:bg-muted"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-                      {item.hasMega && hasSubs && (
+                      {isElectronics ? (
+                        <span className="flex-1 px-5 py-3 text-sm font-medium text-muted-foreground cursor-default select-none">
+                          {item.label}
+                        </span>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className="flex-1 px-5 py-3 text-sm font-medium text-foreground hover:bg-muted"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          {item.label}
+                        </Link>
+                      )}
+                      {item.hasMega && hasSubs && !isElectronics && (
                         <button
                           onClick={() => toggleMobileExpand(item.slug!)}
                           className="px-4 py-3 text-muted-foreground hover:bg-muted"
@@ -441,29 +489,43 @@ export function Header() {
                         </button>
                       )}
                     </div>
-                    {item.hasMega && isExpanded && cat?.subcategories && (
+                    {item.hasMega && isExpanded && cat?.subcategories && !isElectronics && (
                       <div className="bg-muted/50 py-1">
-                        {cat.subcategories.map((sub) => (
-                          <div key={sub.id}>
-                            <Link
-                              href={`/shop?category=${cat.slug}&subcategory=${sub.slug}`}
-                              className="block px-8 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                              onClick={() => setMobileMenuOpen(false)}
-                            >
-                              {sub.name}
-                            </Link>
-                            {sub.sub_subcategories?.map((child) => (
-                              <Link
-                                key={child.id}
-                                href={`/shop?category=${cat.slug}&subcategory=${sub.slug}&sub_subcategory=${child.slug}`}
-                                className="block px-12 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() => setMobileMenuOpen(false)}
-                              >
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        ))}
+                        {cat.subcategories.map((sub) => {
+                          const isComingSoon = isComingSoonHomeSubcategory(cat.slug, sub.slug);
+                          return (
+                            <div key={sub.id}>
+                              {isComingSoon ? (
+                                <div className="block px-8 py-2 text-sm font-medium text-muted-foreground cursor-default select-none">
+                                  <div>{sub.name}</div>
+                                  <div className="text-[11px] uppercase tracking-widest text-primary/80">
+                                    Coming soon
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <Link
+                                    href={`/shop?category=${cat.slug}&subcategory=${sub.slug}`}
+                                    className="block px-8 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                  >
+                                    {sub.name}
+                                  </Link>
+                                  {sub.sub_subcategories?.map((child) => (
+                                    <Link
+                                      key={child.id}
+                                      href={`/shop?category=${cat.slug}&subcategory=${sub.slug}&sub_subcategory=${child.slug}`}
+                                      className="block px-12 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                      onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                      {child.name}
+                                    </Link>
+                                  ))}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
