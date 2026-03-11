@@ -18,8 +18,6 @@ const STATIC_NAV_END = [
 ];
 type NavItem = { label: string; href: string; hasMega: boolean; slug?: string };
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
-
 export function Header() {
   const [, setLocation] = useLocation();
   const { getCartCount, openCart } = useCart();
@@ -142,7 +140,7 @@ export function Header() {
               </button>
               <Link href="/" className="font-display font-black text-2xl tracking-tighter shrink-0 flex items-center gap-0">
                 <img
-                  src={`${API_BASE}/static/brand_logo/apnamart_logo.png`}
+                  src={getMediaUrl("static/brand_logo/apnamart_logo.png")}
                   alt="Apnamart"
                   className="h-24 w-24 object-cover rounded-lg"
                   style={{ objectPosition: 'center top' }}
