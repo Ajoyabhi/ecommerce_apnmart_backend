@@ -140,9 +140,9 @@ export function Header() {
               </button>
               <Link href="/" className="font-display font-black text-2xl tracking-tighter shrink-0 flex items-center gap-0">
                 <img
-                  src={getMediaUrl("static/brand_logo/apnamart_logo.png")}
+                  src="https://res.cloudinary.com/dbmlo1jox/image/upload/v1773217272/Untitled_pkxap0.png"
                   alt="Apnamart"
-                  className="h-24 w-24 object-cover rounded-lg"
+                  className="h-12 w-14 rounded-lg m-2"
                   style={{ objectPosition: 'center top' }}
                 />
                 <span className="hidden sm:inline">Apnamart</span>

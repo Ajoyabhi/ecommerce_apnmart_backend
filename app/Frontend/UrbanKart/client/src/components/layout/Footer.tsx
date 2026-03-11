@@ -8,10 +8,12 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
           
           <div className="lg:col-span-2">
-            <div className="font-display font-black text-2xl tracking-tighter flex items-center gap-1 mb-6">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground text-xl">A</span>
-              </div>
+            <div className="font-display font-black text-2xl tracking-tighter flex items-center gap-2 mb-6">
+              <img
+                src="https://res.cloudinary.com/dbmlo1jox/image/upload/v1773217272/Untitled_pkxap0.png"
+                alt="Apnamart"
+                className="w-10 h-10 object-cover"
+              />
               Apnamart
             </div>
             <p className="text-muted-foreground mb-6 max-w-sm">
