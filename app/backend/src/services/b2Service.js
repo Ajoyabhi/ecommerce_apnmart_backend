@@ -28,25 +28,40 @@ async function authorize() {
 }
 
 async function uploadFile(fileBuffer, fileName, mimeType) {
-    await authorize();
+    const doUpload = async () => {
+        await authorize();
 
-    const bucketResponse = await b2.getBucket({
-        bucketName: process.env.B2_BUCKET_NAME
-    });
+        const bucketResponse = await b2.getBucket({
+            bucketName: process.env.B2_BUCKET_NAME
+        });
 
-    const bucketId = bucketResponse.data.buckets[0].bucketId;
+        const bucketId = bucketResponse.data.buckets[0].bucketId;
 
-    const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
+        const uploadUrlResponse = await b2.getUploadUrl({ bucketId });
 
-    const uploadResponse = await b2.uploadFile({
-        uploadUrl: uploadUrlResponse.data.uploadUrl,
-        uploadAuthToken: uploadUrlResponse.data.authorizationToken,
-        fileName,
-        data: fileBuffer,
-        mime: mimeType
-    });
+        const uploadResponse = await b2.uploadFile({
+            uploadUrl: uploadUrlResponse.data.uploadUrl,
+            uploadAuthToken: uploadUrlResponse.data.authorizationToken,
+            fileName,
+            data: fileBuffer,
+            mime: mimeType
+        });
 
-    return uploadResponse.data;
+        return uploadResponse.data;
+    };
+
+    try {
+        return await doUpload();
+    } catch (err) {
+        const code = err?.response?.data?.code;
+        if (code === 'expired_auth_token') {
+            // Clear authorization state and retry once with a fresh token
+            isAuthorized = false;
+            await authorize();
+            return doUpload();
+        }
+        throw err;
+    }
 }
 
 /**
