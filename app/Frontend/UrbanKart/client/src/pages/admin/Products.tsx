@@ -384,12 +384,12 @@ export default function AdminProducts() {
                     Used as the main product image. You can also paste a URL below.
                   </p>
                   <input
-                    type="url"
+                    type="text"
                     value={form.primaryImage}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, primaryImage: e.target.value }))
                     }
-                    placeholder="Or paste image URL"
+                    placeholder="Or paste image URL or stored path"
                     className="mt-2 w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
                   />
                 </div>
