@@ -12,11 +12,21 @@ const productSchema = z.object({
     brand: z.string().optional().nullable(),
     status: z.enum(['draft', 'published', 'archived']).optional().default('draft'),
     isFeatured: z.boolean().optional().default(false),
+    initialStock: z.number().int().nonnegative().optional().default(0),
     // Rich Content (Mongo)
     descriptionHtml: z.string().optional(),
     lifestyleTags: z.array(z.string()).optional(),
     attributes: z.any().optional(),
-    mediaGallery: z.array(z.any()).optional()
+    mediaGallery: z.array(z.any()).optional(),
+    variants: z
+        .array(
+            z.object({
+                size: z.string().optional(),
+                color: z.string().optional(),
+                stock: z.number().int().nonnegative().optional()
+            })
+        )
+        .optional()
 });
 
 const updateProductSchema = productSchema.partial();
@@ -48,6 +58,61 @@ exports.createProduct = async (req, res, next) => {
                 attributes: validatedData.attributes,
                 media_gallery: validatedData.mediaGallery
             });
+
+            // 3. Create variants + inventory so product appears in inventory admin
+            const variantsInput = Array.isArray(validatedData.variants) ? validatedData.variants : [];
+            if (variantsInput.length) {
+                let idx = 1;
+                for (const v of variantsInput) {
+                    const size = v.size;
+                    const color = v.color;
+                    const nameParts = [];
+                    if (color) nameParts.push(color);
+                    if (size) nameParts.push(size);
+                    const name = nameParts.length ? nameParts.join(' / ') : 'Default';
+                    const sku = `${validatedData.sku}-${String(idx).padStart(2, '0')}`;
+                    const options = {};
+                    if (color) options.color = color;
+                    if (size) options.size = size;
+
+                    await prisma.productVariant.create({
+                        data: {
+                            productId: pgProduct.id,
+                            sku,
+                            name,
+                            options,
+                            priceAdjustment: 0,
+                            inventory: {
+                                create: {
+                                    quantity:
+                                        typeof v.stock === 'number'
+                                            ? v.stock
+                                            : validatedData.initialStock ?? 0,
+                                    lowThreshold: 5
+                                }
+                            }
+                        }
+                    });
+                    idx += 1;
+                }
+            } else {
+                // Fallback: single default variant
+                await prisma.productVariant.create({
+                    data: {
+                        productId: pgProduct.id,
+                        sku: validatedData.sku,
+                        name: 'Default',
+                        options: {},
+                        priceAdjustment: 0,
+                        inventory: {
+                            create: {
+                                quantity: validatedData.initialStock ?? 0,
+                                lowThreshold: 5
+                            }
+                        }
+                    }
+                });
+            }
         } catch (mongoError) {
             // Rollback PG if Mongo fails for atomicity
             await prisma.product.delete({ where: { id: pgProduct.id } });

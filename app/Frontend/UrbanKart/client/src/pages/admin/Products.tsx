@@ -28,6 +28,9 @@ interface ProductFormData {
   sku: string;
   slug: string;
   basePrice: string;
+  initialStock: string;
+  variantSizes: string[];
+  variantColors: string[];
   categoryId: string;
   status: string;
   isFeatured: boolean;
@@ -41,6 +44,9 @@ const EMPTY_FORM: ProductFormData = {
   sku: "",
   slug: "",
   basePrice: "",
+  initialStock: "",
+  variantSizes: [],
+  variantColors: [],
   categoryId: "",
   status: "draft",
   isFeatured: false,
@@ -73,6 +79,31 @@ export default function AdminProducts() {
       p.sku.toLowerCase().includes(search.toLowerCase())
   );
 
+  const selectedCategory = flatCategories.find((c) => c.id === form.categoryId);
+  const categorySlug = selectedCategory?.slug ?? "";
+  const isFashion = categorySlug.startsWith("fashion");
+  const isFootwear = categorySlug.includes("footwear");
+  const isKids =
+    categorySlug.includes("fashion-boys") || categorySlug.includes("fashion-girls");
+  const isHome = categorySlug.startsWith("home");
+
+  let availableSizes: string[] = [];
+  let availableColors: string[] = [];
+
+  if (isFashion) {
+    if (isFootwear) {
+      availableSizes = ["6", "7", "8", "9", "10"];
+    } else if (isKids) {
+      availableSizes = ["<1 year", "1-3 years", "3-5 years"];
+    } else {
+      availableSizes = ["XS", "S", "M", "L", "XL", "XXL"];
+    }
+    availableColors = ["White", "Black", "Blue", "Red", "Green"];
+  } else if (isHome) {
+    availableSizes = ["Single", "Set of 3", "Set of 6"];
+    availableColors = ["White", "Grey", "Beige", "Navy"];
+  }
+
   const openCreate = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -90,6 +121,9 @@ export default function AdminProducts() {
       sku: product.sku,
       slug: product.slug,
       basePrice: String(product.basePrice),
+      initialStock: "",
+      variantSizes: [],
+      variantColors: [],
       categoryId: product.categoryId || "",
       status: product.status || "draft",
       isFeatured: product.isFeatured,
@@ -156,6 +190,13 @@ export default function AdminProducts() {
       isFeatured: form.isFeatured,
     };
 
+    if (!editingId && form.initialStock.trim()) {
+      const stock = parseInt(form.initialStock.trim(), 10);
+      if (!Number.isNaN(stock) && stock >= 0) {
+        payload.initialStock = stock;
+      }
+    }
+
     if (form.description.trim()) {
       payload.descriptionHtml = `<p>${form.description.trim()}</p>`;
     }
@@ -174,6 +215,28 @@ export default function AdminProducts() {
         is_primary: index === 0,
         alt: form.name.trim() || undefined,
       }));
+    }
+
+    if (!editingId) {
+      const sizes = form.variantSizes;
+      const colors = form.variantColors;
+      const variants: { size?: string; color?: string; stock?: number }[] = [];
+
+      if (sizes.length && colors.length) {
+        sizes.forEach((size) => {
+          colors.forEach((color) => {
+            variants.push({ size, color });
+          });
+        });
+      } else if (sizes.length) {
+        sizes.forEach((size) => variants.push({ size }));
+      } else if (colors.length) {
+        colors.forEach((color) => variants.push({ color }));
+      }
+
+      if (variants.length) {
+        payload.variants = variants;
+      }
     }
 
     try {
@@ -315,6 +378,25 @@ export default function AdminProducts() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1.5">
+                    Initial Stock
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.initialStock}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, initialStock: e.target.value }))
+                    }
+                    placeholder="e.g. 10"
+                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Optional. Creates a default variant with this stock. You can fine-tune stock per variant in the Inventory screen.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
                     Category *
                   </label>
                   <select
@@ -369,6 +451,79 @@ export default function AdminProducts() {
                   data-testid="input-product-description"
                 />
               </div>
+
+              {(availableSizes.length > 0 || availableColors.length > 0) && !editingId && (
+                <div className="border border-dashed border-border rounded-2xl p-4 space-y-4">
+                  <h4 className="font-semibold text-sm">Variants (based on category)</h4>
+                  {availableSizes.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Sizes:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableSizes.map((size) => {
+                          const checked = form.variantSizes.includes(size);
+                          return (
+                            <label
+                              key={size}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-xs cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                className="w-3 h-3"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const next = e.target.checked
+                                    ? [...form.variantSizes, size]
+                                    : form.variantSizes.filter((s) => s !== size);
+                                  setForm((f) => ({ ...f, variantSizes: next }));
+                                }}
+                              />
+                              <span>{size}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {availableColors.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Colors:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableColors.map((color) => {
+                          const checked = form.variantColors.includes(color);
+                          return (
+                            <label
+                              key={color}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-xs cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                className="w-3 h-3"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const next = e.target.checked
+                                    ? [...form.variantColors, color]
+                                    : form.variantColors.filter((c) => c !== color);
+                                  setForm((f) => ({ ...f, variantColors: next }));
+                                }}
+                              />
+                              <span>{color}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    We&apos;ll create one variant for each selected size/color combination and
+                    attach stock using Initial Stock. You can fine-tune per-variant stock later in
+                    the Inventory screen.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
