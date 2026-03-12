@@ -381,8 +381,17 @@ export default function AdminProducts() {
                     data-testid="upload-primary-image"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Used as the main product image.
+                    Used as the main product image. You can also paste a URL below.
                   </p>
+                  <input
+                    type="url"
+                    value={form.primaryImage}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, primaryImage: e.target.value }))
+                    }
+                    placeholder="Or paste image URL"
+                    className="mt-2 w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                  />
                 </div>
                 <div>
                   <AdminMediaUploadMultiple

@@ -19,6 +19,8 @@ const productSchema = z.object({
     mediaGallery: z.array(z.any()).optional()
 });
 
+const updateProductSchema = productSchema.partial();
+
 exports.createProduct = async (req, res, next) => {
     try {
         const validatedData = productSchema.parse(req.body);
@@ -53,6 +55,67 @@ exports.createProduct = async (req, res, next) => {
         }
 
         res.status(201).json({ success: true, data: pgProduct });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ success: false, errors: error.errors });
+        }
+        next(error);
+    }
+};
+
+exports.updateProduct = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const existing = await prisma.product.findUnique({ where: { id } });
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        const validatedData = updateProductSchema.parse(req.body);
+
+        // Update core product fields in PostgreSQL
+        const pgUpdateData = {};
+        if (validatedData.sku !== undefined) pgUpdateData.sku = validatedData.sku;
+        if (validatedData.name !== undefined) pgUpdateData.name = validatedData.name;
+        if (validatedData.slug !== undefined) pgUpdateData.slug = validatedData.slug;
+        if (validatedData.basePrice !== undefined) pgUpdateData.basePrice = validatedData.basePrice;
+        if (validatedData.categoryId !== undefined) pgUpdateData.categoryId = validatedData.categoryId;
+        if (validatedData.brand !== undefined) pgUpdateData.brand = validatedData.brand ?? undefined;
+        if (validatedData.status !== undefined) pgUpdateData.status = validatedData.status;
+        if (validatedData.isFeatured !== undefined) pgUpdateData.isFeatured = validatedData.isFeatured;
+
+        const pgProduct = Object.keys(pgUpdateData).length
+            ? await prisma.product.update({
+                  where: { id },
+                  data: pgUpdateData
+              })
+            : existing;
+
+        // Update rich content in MongoDB (description, media, attributes, etc.)
+        const richUpdate = {};
+        if (validatedData.descriptionHtml !== undefined) {
+            richUpdate.description_html = validatedData.descriptionHtml;
+        }
+        if (validatedData.lifestyleTags !== undefined) {
+            richUpdate.lifestyle_tags = validatedData.lifestyleTags;
+        }
+        if (validatedData.attributes !== undefined) {
+            richUpdate.attributes = validatedData.attributes;
+        }
+        if (validatedData.mediaGallery !== undefined) {
+            richUpdate.media_gallery = validatedData.mediaGallery;
+        }
+
+        if (Object.keys(richUpdate).length) {
+            await ProductRichContent.findOneAndUpdate(
+                { pg_id: pgProduct.id },
+                { $set: richUpdate },
+                { upsert: true, new: true }
+            );
+        }
+
+        res.status(200).json({ success: true, data: pgProduct });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({ success: false, errors: error.errors });
