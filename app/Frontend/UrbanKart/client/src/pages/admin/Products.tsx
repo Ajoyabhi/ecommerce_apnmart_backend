@@ -68,10 +68,28 @@ export default function AdminProducts() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductFormData>(EMPTY_FORM);
 
-  const flatCategories = categories.flatMap((c) => [
-    c,
-    ...(c.children ?? []),
-  ]);
+  // Flatten full category tree (root → children → grandchildren...) so that
+  // Fashion → Men/Women/Boys/Girls and all of their subcategories seeded in
+  // the backend (T‑Shirts & Polos, Sarees, Anarkali Suits, etc.) appear as
+  // selectable options in the admin product form.
+  type FlatCategory = (typeof categories)[number] & { depth?: number };
+
+  const flatCategories: FlatCategory[] = (() => {
+    const out: FlatCategory[] = [];
+
+    const walk = (nodes: any[], depth: number) => {
+      if (!nodes?.length) return;
+      for (const node of nodes) {
+        out.push({ ...node, depth });
+        if (node.children && node.children.length) {
+          walk(node.children, depth + 1);
+        }
+      }
+    };
+
+    walk(categories as any[], 0);
+    return out;
+  })();
 
   const filtered = products.filter(
     (p) =>
@@ -409,12 +427,17 @@ export default function AdminProducts() {
                     data-testid="select-product-category"
                   >
                     <option value="">None</option>
-                    {flatCategories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.parentId ? "— " : ""}
-                        {cat.name}
-                      </option>
-                    ))}
+                    {flatCategories.map((cat) => {
+                      const depth = cat.depth ?? 0;
+                      const prefix =
+                        depth === 0 ? "" : `${"— ".repeat(Math.min(depth, 3))}`;
+                      return (
+                        <option key={cat.id} value={cat.id}>
+                          {prefix}
+                          {cat.name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div>

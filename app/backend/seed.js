@@ -761,7 +761,8 @@ function escapeHtml(text) {
 
 const FASHION_CSV_PATH = process.env.FASHION_CSV || path.join(__dirname, 'product_images/fashion.csv');
 const PRODUCT_IMAGES_BASE = process.env.PRODUCT_IMAGES_DIR || path.join(__dirname, 'product_images');
-const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'b2').toLowerCase();
+// Default to local uploads so seeded media stays on server storage unless explicitly set to "b2"
+const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'local').toLowerCase();
 const LOCAL_UPLOAD_PATH = process.env.LOCAL_UPLOAD_PATH || path.join(__dirname, 'uploads');
 const FASHION_SEED_LIMIT = process.env.FASHION_SEED_LIMIT ? parseInt(process.env.FASHION_SEED_LIMIT, 10) : null;
 
@@ -809,10 +810,22 @@ function fashionBuildCategoryTree(rows) {
     const seen = new Set();
     const leafKeys = [];
     for (const r of rows) {
-        const key = `${r.gender}|${r.category}|${r.subCategory}`;
+        const gender = String(r.gender || '').trim();
+        const category = String(r.category || '').trim();
+        const subCategory = String(r.subCategory || '').trim();
+        const genderLower = gender.toLowerCase();
+        const categoryLower = category.toLowerCase();
+        const subLower = subCategory.toLowerCase();
+
+        // Skip malformed header-like rows that would create a bogus "Gender / Category" branch
+        if (genderLower === 'gender' || categoryLower === 'category' || subLower === 'subcategory') {
+            continue;
+        }
+
+        const key = `${gender}|${category}|${subCategory}`;
         if (!seen.has(key)) {
             seen.add(key);
-            leafKeys.push({ gender: r.gender, category: r.category, subCategory: r.subCategory });
+            leafKeys.push({ gender, category, subCategory });
         }
     }
     const root = { name: 'Fashion', slug: 'fashion', children: {} };
@@ -849,6 +862,15 @@ function fashionGetLeafSlug(row) {
 function fashionPickRowsDistributedByCategory(rows, limit) {
     const byLeaf = new Map();
     for (const row of rows) {
+        const genderLower = String(row.gender || '').toLowerCase().trim();
+        const categoryLower = String(row.category || '').toLowerCase().trim();
+        const subLower = String(row.subCategory || '').toLowerCase().trim();
+
+        // Skip malformed header-like rows (Gender / Category / SubCategory)
+        if (genderLower === 'gender' || categoryLower === 'category' || subLower === 'subcategory') {
+            continue;
+        }
+
         const slug = fashionGetLeafSlug(row);
         if (!byLeaf.has(slug)) byLeaf.set(slug, []);
         byLeaf.get(slug).push(row);
@@ -985,7 +1007,8 @@ function fashionGetSizesForProduct(row) {
     }
 
     if (gender === 'boys' || gender === 'girls') {
-        return ['S', 'M', 'L', 'XL'];
+        // Age-based sizing for kids
+        return ['<1 year', '1-3 years', '3-5 years'];
     }
 
     if (
@@ -2034,12 +2057,22 @@ async function seed() {
     try {
         console.log('🌱 Starting seeding...');
 
-        // 1. Clear product media blobs + databases (dev‑only – this is destructive)
-        await clearProductMediaBlobs();
-        await clearRelationalData();
+        // 1. Optionally clear product media blobs + databases (dev‑only – this is destructive)
+        // To enable full reset, set ALLOW_DESTRUCTIVE_SEED=1 in the environment.
+        const allowDestructiveSeed =
+            process.env.ALLOW_DESTRUCTIVE_SEED === '1' ||
+            process.env.ALLOW_DESTRUCTIVE_SEED === 'true';
+
+        if (allowDestructiveSeed) {
+            await clearProductMediaBlobs();
+            await clearRelationalData();
+        }
 
         await mongoose.connect(process.env.MONGODB_URI);
-        await clearMongoData();
+
+        if (allowDestructiveSeed) {
+            await clearMongoData();
+        }
 
         // 2. Admin user
         const admin = await createAdminUser();

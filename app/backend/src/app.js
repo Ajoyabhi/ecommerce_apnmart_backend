@@ -59,7 +59,8 @@ app.get('/health', (req, res) => {
 });
 
 // Serve local uploads when UPLOAD_METHOD=local (so frontend can use VITE_MEDIA_BASE_URL=http://localhost:5001/uploads)
-const uploadMethod = (process.env.UPLOAD_METHOD || 'b2').toLowerCase();
+// Default to local uploads if not explicitly configured
+const uploadMethod = (process.env.UPLOAD_METHOD || 'local').toLowerCase();
 const localUploadPath = process.env.LOCAL_UPLOAD_PATH || './uploads';
 if (uploadMethod === 'local') {
     app.use('/uploads', express.static(localUploadPath));

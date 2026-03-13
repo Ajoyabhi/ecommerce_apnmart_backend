@@ -9,7 +9,8 @@ const { uploadFile, requireB2Config } = require('../services/b2Service');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
-const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'b2').toLowerCase();
+// Default to local uploads unless explicitly set to "b2"
+const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'local').toLowerCase();
 const LOCAL_UPLOAD_PATH = process.env.LOCAL_UPLOAD_PATH || './uploads';
 
 // Use in-memory storage so we can compress / send buffers directly to B2 or write locally
