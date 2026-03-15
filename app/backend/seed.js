@@ -424,12 +424,13 @@ async function clearProductMediaBlobs() {
 }
 
 async function createAdminUser() {
-    console.log('👤 Creating admin user...');
+    console.log('👤 Creating or updating admin user...');
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash('admin123', salt);
 
-    const admin = await prisma.user.create({
-        data: {
+    const admin = await prisma.user.upsert({
+        where: { email: 'admin@lifestyle.com' },
+        create: {
             email: 'admin@lifestyle.com',
             passwordHash,
             firstName: 'System',
@@ -437,7 +438,14 @@ async function createAdminUser() {
             role: 'ADMIN',
             provider: 'local',
             isEmailVerified: true,
-        }
+        },
+        update: {
+            passwordHash,
+            firstName: 'System',
+            lastName: 'Admin',
+            role: 'ADMIN',
+            isEmailVerified: true,
+        },
     });
 
     return admin;
