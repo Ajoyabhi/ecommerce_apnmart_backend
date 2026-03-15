@@ -463,10 +463,19 @@ async function seedCategories() {
                 ? `categories/${node.slug}.jpg`
                 : node.imageUrl;
 
-            const category = await prisma.category.create({
-                data: {
+            const category = await prisma.category.upsert({
+                where: { slug: node.slug },
+                create: {
                     name: node.name,
                     slug: node.slug,
+                    description: node.description,
+                    imageUrl,
+                    parentId,
+                    sortOrder: sortOrderCounter++,
+                    isActive: true
+                },
+                update: {
+                    name: node.name,
                     description: node.description,
                     imageUrl,
                     parentId,
