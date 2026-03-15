@@ -114,9 +114,9 @@ export function ProductCard({ product, className }: ProductCardProps) {
         </h3>
 
         {(product.reviewsCount ?? 0) > 0 && product.rating != null ? (
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
             <RatingStars rating={Number(product.rating)} className="w-3 h-3" />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground shrink-0">
               ({product.reviewsCount})
             </span>
           </div>

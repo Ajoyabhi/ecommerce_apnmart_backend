@@ -34,7 +34,8 @@ const prisma = new PrismaClient();
 const IMAGES_BASE = process.env.PRODUCT_IMAGES_DIR || path.join(__dirname, '../product_images');
 const MEN_CLOTH_DIR = process.env.MEN_CLOTH_DIR || path.join(IMAGES_BASE, 'men_cloth/dataset_clean');
 const WOMEN_CLOTH_DIR = process.env.WOMEN_CLOTH_DIR || path.join(IMAGES_BASE, 'women fashion');
-const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'b2').toLowerCase();
+// Default to local uploads so seeded media stays on server storage unless explicitly set to "b2"
+const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'local').toLowerCase();
 const LOCAL_UPLOAD_PATH = process.env.LOCAL_UPLOAD_PATH || path.join(__dirname, '../uploads');
 const SEED_LIMIT_MEN = process.env.APPAREL_SEED_LIMIT_MEN ? parseInt(process.env.APPAREL_SEED_LIMIT_MEN, 10) : null;
 const SEED_LIMIT_WOMEN = process.env.APPAREL_SEED_LIMIT_WOMEN ? parseInt(process.env.APPAREL_SEED_LIMIT_WOMEN, 10) : null;

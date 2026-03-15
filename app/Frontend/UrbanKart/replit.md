@@ -1,4 +1,4 @@
-# AnpaMart E-Commerce Platform
+# Apnamart E-Commerce Platform
 
 ## Overview
 Frontend-only React e-commerce platform that connects to an external Express + Prisma backend at `/api/v1`. Built with TypeScript, Tailwind CSS, Shadcn UI, Zustand, React Query, and Framer Motion.

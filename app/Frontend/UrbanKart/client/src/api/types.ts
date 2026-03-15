@@ -88,8 +88,32 @@ export interface BackendProduct {
   isFeatured: boolean;
   createdAt?: string;
   updatedAt?: string;
+  /** Optional aggregate review stats from backend */
+  rating?: number | null;
+  reviewsCount?: number | null;
+  /** Optional list of reviews for product detail page */
+  reviews?: ProductReview[] | null;
+  /** Rating distribution + fit/quality opinion percentages */
+  ratingSummary?: ProductRatingSummary | null;
   variants?: BackendProductVariant[];
   richContent?: ProductRichContent | null;
+}
+
+export interface ProductRatingSummary {
+  ratingDistribution: Record<number, number>;
+  /** Omitted for beauty products (fit not applicable) */
+  fitOpinion?: Record<string, number> | null;
+  qualityOpinion: Record<string, number>;
+}
+
+export interface ProductReview {
+  id?: string | null;
+  user?: { name?: string; avatar?: string; verified_purchaser?: boolean } | null;
+  rating: number;
+  title?: string | null;
+  content?: string | null;
+  createdAt?: string;
+  likes?: number;
 }
 
 export interface ProductRichContent {
@@ -124,6 +148,9 @@ export interface Product {
   sizes: string[];
   rating?: number;
   reviewsCount?: number;
+  /** Reviews list (when loaded from product detail API) */
+  reviews?: ProductReview[] | null;
+  ratingSummary?: ProductRatingSummary | null;
   stock: number;
   isFeatured: boolean;
   variants?: BackendProductVariant[];

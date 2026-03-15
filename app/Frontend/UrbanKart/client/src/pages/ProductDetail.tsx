@@ -14,6 +14,7 @@ import {
   Truck,
   RotateCcw,
   Check,
+  Star,
 } from "lucide-react";
 
 export default function ProductDetail() {
@@ -222,15 +223,15 @@ export default function ProductDetail() {
               {product.name}
             </h1>
 
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 pb-6 border-b border-border">
               {(product.reviewsCount ?? 0) > 0 && product.rating != null && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
                   <RatingStars
                     rating={Number(product.rating)}
                     className="w-5 h-5"
                   />
-                  <span className="font-medium ml-1">{product.rating}</span>
-                  <span className="text-muted-foreground underline cursor-pointer hover:text-primary">
+                  <span className="font-medium text-foreground">{product.rating}</span>
+                  <span className="text-muted-foreground text-sm">
                     {product.reviewsCount} reviews
                   </span>
                 </div>
@@ -369,6 +370,84 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+
+      {(product.rating != null || product.ratingSummary) && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-12 border-t border-border">
+          <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-6">
+            Ratings
+          </h2>
+          <div className="flex flex-wrap items-center gap-6 mb-2">
+            <span className="text-foreground font-semibold">
+              {product.rating ?? "—"} Star selected
+            </span>
+            <span className="text-muted-foreground">
+              {product.reviewsCount ?? 0} Customers
+            </span>
+          </div>
+
+          {product.ratingSummary && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mt-8">
+              <div>
+                <h3 className="font-semibold text-foreground mb-4">Rating Distribution</h3>
+                <div className="space-y-3 max-w-md">
+                  {([5, 4, 3, 2, 1] as const).map((star) => {
+                    const pct = product.ratingSummary!.ratingDistribution?.[star] ?? 0;
+                    return (
+                      <div key={star} className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 w-20 shrink-0">
+                          <span className="text-sm text-foreground w-4">{star}</span>
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden min-w-[80px]">
+                          <div
+                            className="h-full bg-amber-400 rounded-full transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-sm text-muted-foreground w-10 shrink-0">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-foreground mb-4">Customer Opinion</h3>
+                <div className="space-y-6">
+                  {product.ratingSummary.fitOpinion && Object.keys(product.ratingSummary.fitOpinion).length > 0 && (
+                    <div>
+                      <p className="text-foreground font-medium mb-2">How was the Product fit?</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(product.ratingSummary.fitOpinion).map(([label, pct]) => (
+                          <span
+                            key={label}
+                            className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground"
+                          >
+                            {label}({pct}%)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-foreground font-medium mb-2">How was the Product Quality?</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(product.ratingSummary.qualityOpinion || {}).map(([label, pct]) => (
+                        <span
+                          key={label}
+                          className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground"
+                        >
+                          {label}({pct}%)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {youMayLike.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 border-t border-border pt-16">

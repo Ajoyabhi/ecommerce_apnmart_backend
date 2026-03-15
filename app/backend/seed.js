@@ -3,7 +3,7 @@ const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
-const { ProductRichContent, CategoryFeedSection } = require('./src/models');
+const { ProductRichContent, CategoryFeedSection, Review, ProductRatingSummary } = require('./src/models');
 const { uploadFile, getBaseMediaUrl } = require('./src/services/b2Service');
 const { compressImage, generateAugmentedVariants } = require('./src/services/mediaProcessor');
 require('dotenv').config();
@@ -507,13 +507,21 @@ async function seedProducts(categorySlugIdMap, leafCategorySlugs, slugToProductL
             const slug = `${catSlug}-${styleKey}`;
             const brand = segmentBrands[(totalProducts + i) % segmentBrands.length];
 
-            let basePrice = 499 + i * 100;
-            if (segmentKey === 'electronics') basePrice += 2500;
-            if (segmentKey === 'home') basePrice += 300;
-            if (segmentKey === 'beauty') basePrice = 299 + i * 80;
+            let basePrice;
+            if (segmentKey === 'fashion') {
+                basePrice = 100 * (1 + Math.floor((totalProducts + i) % 20));
+            } else if (segmentKey === 'electronics') {
+                basePrice = 499 + i * 100 + 2500;
+            } else if (segmentKey === 'home') {
+                basePrice = 100 * (1 + Math.floor((totalProducts + i) % 20));
+            } else if (segmentKey === 'beauty') {
+                basePrice = 299 + i * 80;
+            } else {
+                basePrice = 499 + i * 100;
+            }
 
             const status = i <= 1 ? 'published' : i === 2 ? 'draft' : 'archived';
-            const isFeatured = i === 0 || (totalProducts + i) % 5 === 0;
+            const isFeatured = segmentKey === 'fashion' && (i === 0 || (totalProducts + i) % 5 === 0);
 
             const product = await prisma.product.create({
                 data: {
@@ -938,8 +946,9 @@ async function fashionResolveImageUrls(row) {
     return urls;
 }
 
+// Fashion prices: 100–2000 INR, multiples of 100 (mainly for fashion)
 function fashionRandomPrice() {
-    return Math.floor(100 + Math.random() * 3900);
+    return 100 * (1 + Math.floor(Math.random() * 20));
 }
 
 function fashionBasePriceForRow(row) {
@@ -959,11 +968,9 @@ function fashionBasePriceForRow(row) {
         pt.includes('footwear');
 
     if (isFootwear) {
-        // Footwear: price between 300 and 2000
-        return Math.floor(300 + Math.random() * 1700);
+        return 100 * (3 + Math.floor(Math.random() * 18));
     }
 
-    // Default fashion pricing
     return fashionRandomPrice();
 }
 
@@ -1142,7 +1149,7 @@ async function seedFashionFromCsv() {
                     categoryId,
                     brand: null,
                     status: 'published',
-                    isFeatured: true
+                    isFeatured: i % 5 === 0
                 }
             });
 
@@ -1360,7 +1367,7 @@ async function apparelResolveImageUrls(sourceBuffer, productSlug) {
 }
 
 function apparelRandomPrice() {
-    return Math.floor(299 + Math.random() * 3700);
+    return 100 * (1 + Math.floor(Math.random() * 20));
 }
 
 // Use richer marketing-style names and descriptions for apparel products
@@ -1501,7 +1508,7 @@ async function seedApparelFromImages() {
                         categoryId,
                         brand: menBrand,
                         status: 'published',
-                        isFeatured: true
+                        isFeatured: menIndex % 5 === 0
                     }
                 });
 
@@ -1598,7 +1605,7 @@ async function seedApparelFromImages() {
                     categoryId,
                     brand: womenBrand,
                     status: 'published',
-                    isFeatured: true
+                    isFeatured: i % 5 === 0
                 }
             });
 
@@ -1842,7 +1849,7 @@ async function seedBeautyFromJson() {
                     categoryId,
                     brand: p.brand ? String(p.brand).slice(0, 120) : null,
                     status: 'published',
-                    isFeatured: true
+                    isFeatured: false
                 }
             });
 
@@ -1956,10 +1963,7 @@ async function seedCuratedHomeDecor() {
         const name = `${humanBase} ${typeLabel}`;
         const safeName = name.slice(0, 255);
 
-        // Price between 100 and 1000
-        let price = 199 + i * 70;
-        if (price > 999) price = 999;
-        if (price < 100) price = 100;
+        const price = 100 * (1 + Math.floor(Math.random() * 20));
 
         const slugBase = apparelSlugify(`${decorType}-${baseName}`.slice(0, 60));
         const slug = `home-decor-${slugBase || decorType}-${i}`;
@@ -1993,7 +1997,7 @@ async function seedCuratedHomeDecor() {
                     categoryId: homeDecorCategory.id,
                     brand,
                     status: 'published',
-                    isFeatured: true
+                    isFeatured: false
                 }
             });
 
@@ -2051,6 +2055,242 @@ async function seedCuratedHomeDecor() {
     console.log('✅ Curated Home Decor seeding done. Created:', created);
 }
 
+// ----- Review seeding (MongoDB): 1–100 random reviews per product, random comments -----
+const REVIEW_SEED_USERS = [
+    { name: 'Amit Verma', avatar: 'https://i.pravatar.cc/150?img=3' },
+    { name: 'Sneha Kapoor', avatar: 'https://i.pravatar.cc/150?img=5' },
+    { name: 'Rahul Sharma', avatar: 'https://i.pravatar.cc/150?img=7' },
+    { name: 'Neha Singh', avatar: 'https://i.pravatar.cc/150?img=8' },
+    { name: 'Arjun Mehta', avatar: 'https://i.pravatar.cc/150?img=10' },
+    { name: 'Priya Nair', avatar: 'https://i.pravatar.cc/150?img=12' },
+    { name: 'Karan Patel', avatar: 'https://i.pravatar.cc/150?img=14' },
+    { name: 'Riya Das', avatar: 'https://i.pravatar.cc/150?img=16' },
+    { name: 'Vikram Reddy', avatar: 'https://i.pravatar.cc/150?img=18' },
+    { name: 'Ananya Iyer', avatar: 'https://i.pravatar.cc/150?img=20' },
+    { name: 'Rohan Gupta', avatar: 'https://i.pravatar.cc/150?img=22' },
+    { name: 'Kavya Menon', avatar: 'https://i.pravatar.cc/150?img=24' }
+];
+
+const REVIEW_SEED_TITLES = [
+    'Great quality at this price', 'Value for money purchase', 'Exactly as shown in pictures',
+    'Comfortable and stylish', 'Good, but room for improvement', 'Highly recommended',
+    'Impressed with the fit', 'Would buy again', 'Solid purchase', 'No regrets',
+    'Better than expected', 'Quick delivery and good packaging', 'Happy with it',
+    'Worth every rupee', 'Nice product', 'Decent for the price', 'Exactly what I wanted',
+    'Good fit and finish', 'Satisfied customer', 'Will recommend to friends',
+    'Pretty good overall', 'Nice colour and material', 'Fast shipping',
+    'As described', 'Pleased with the quality', 'Could be better', 'Not bad',
+    'Mixed feelings', 'Great for daily use', 'Stylish and comfortable', 'Love it'
+];
+
+const REVIEW_SEED_BODIES = [
+    'The product quality is better than I expected. The material feels premium and the finish is neat. Shipping was quick and the packaging was secure.',
+    'Looks exactly like the images on the site. Size was accurate and the color is rich. Have already recommended it to a friend.',
+    'Very comfortable to use on a daily basis. After a few weeks of use there are no issues so far. Definitely worth the price.',
+    'Good overall experience. There were minor stitching issues but nothing major. If you are on the fence, go for it.',
+    'The fit is perfect and the design feels modern. Works well with multiple outfits and I have already received compliments.',
+    'Satisfied with the purchase. Delivery was on time and customer support was responsive. I might pick another variant soon.',
+    'Build quality is solid and it feels durable. The details are well done and it looks even better in person.',
+    'Product matches the description and feels thoughtfully designed. Would happily purchase from this brand again.',
+    'Came well packed. Quality is good for the price. Wearing it regularly with no issues.',
+    'First time buying from here. Impressed. The fabric is soft and the sizing was correct.',
+    'Ordered two sizes to be safe; kept the larger one. Both looked great. No complaints.',
+    'Delivery took a bit longer than expected but the product itself is fine. Would order again.',
+    'Nice and lightweight. Perfect for the season. Colour is true to the image.',
+    'Good stitching and finish. Feels like it will last. Happy with my choice.',
+    'Exactly as shown. No surprises. Packaging could be better but product is good.',
+    'Comfortable and true to size. Already planning to order in another colour.',
+    'Solid build and good value. Minor flaw on one edge but not noticeable when in use.',
+    'Very pleased. Looks expensive and fits well. Will recommend.',
+    'Quick delivery. Product is as described. Using it daily and no wear so far.',
+    'Good buy. Nothing to complain about. Might try other items from the brand.',
+    'Nice product. A bit pricey but quality justifies it. Fits perfectly.',
+    'Received in good condition. Wore it once already. Comfortable and stylish.',
+    'Happy with the purchase. Exactly what I needed. No issues.',
+    'Good quality and fast shipping. Would buy again. Sizing was accurate.',
+    'Pleased overall. Small defect on packaging but product is intact and looks good.',
+    'Worth the money. Comfortable and durable. Already got a second one.',
+    'Nice fit and finish. Delivery was smooth. Recommended.',
+    'As advertised. No complaints. Using it regularly.',
+    'Good experience. Product met expectations. Will consider repurchasing.',
+    'Satisfied. Quality is decent and delivery was on time.',
+    'Works as expected. Comfortable. Would recommend to others.'
+];
+
+function reviewRandomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function reviewRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function reviewRandomRating() {
+    const weights = [1, 2, 3, 4, 5].map((r) => (r >= 4 ? 3 : r === 3 ? 2 : 1));
+    const total = weights.reduce((sum, w) => sum + w, 0);
+    let pick = Math.random() * total;
+    for (let i = 0; i < weights.length; i++) {
+        pick -= weights[i];
+        if (pick <= 0) return i + 1;
+    }
+    return 4;
+}
+
+function reviewBuildAttributeRatings(overall) {
+    const jitter = () => (Math.random() < 0.5 ? 0 : 1);
+    const clamp = (v) => Math.max(1, Math.min(5, v));
+    return {
+        quality: clamp(overall + jitter()),
+        value: clamp(overall),
+        shipping: clamp(overall - (Math.random() < 0.2 ? 1 : 0))
+    };
+}
+
+async function seedReviews() {
+    if (!process.env.MONGODB_URI) {
+        console.log('⏭ Skipping review seeding (MONGODB_URI not set).');
+        return;
+    }
+    const batchSize = parseInt(process.env.REVIEW_SEED_BATCH || '500', 10);
+    const minPerProduct = 1;
+    const maxPerProduct = 100;
+
+    console.log('🌱 Seeding product reviews (1–100 per product, random comments)...');
+    let skip = 0;
+    let totalProductsScanned = 0;
+    let totalReviewsCreated = 0;
+
+    for (;;) {
+        const products = await prisma.product.findMany({
+            skip,
+            take: batchSize,
+            orderBy: { id: 'asc' },
+            select: { id: true, name: true, brand: true }
+        });
+        if (!products.length) break;
+
+        console.log(`   Reviews: processing products ${skip + 1}–${skip + products.length}...`);
+        skip += products.length;
+        totalProductsScanned += products.length;
+
+        for (const product of products) {
+            const productId = String(product.id);
+            const existingCount = await Review.countDocuments({ product_id: productId });
+            if (existingCount > 0) continue;
+
+            const reviewCount = reviewRandomInt(minPerProduct, maxPerProduct);
+            const docs = [];
+
+            for (let i = 0; i < reviewCount; i++) {
+                const userMeta = reviewRandomItem(REVIEW_SEED_USERS);
+                const rating = reviewRandomRating();
+                const createdAt = new Date(
+                    Date.now() - reviewRandomInt(1, 90) * 24 * 60 * 60 * 1000
+                );
+
+                docs.push({
+                    pg_id: `${productId}-seed-${i}`,
+                    product_id: productId,
+                    user: {
+                        id: null,
+                        name: userMeta.name,
+                        avatar: userMeta.avatar,
+                        verified_purchaser: Math.random() < 0.7
+                    },
+                    rating,
+                    title: reviewRandomItem(REVIEW_SEED_TITLES),
+                    content: reviewRandomItem(REVIEW_SEED_BODIES),
+                    images: [],
+                    attribute_ratings: reviewBuildAttributeRatings(rating),
+                    likes: reviewRandomInt(0, 50),
+                    replies: [],
+                    is_approved: true,
+                    createdAt
+                });
+            }
+
+            if (docs.length) {
+                await Review.insertMany(docs);
+                totalReviewsCreated += docs.length;
+            }
+        }
+    }
+
+    console.log('✅ Review seeding done. Products scanned:', totalProductsScanned, '| Reviews created:', totalReviewsCreated);
+}
+
+function ratingSummaryRandomPercentages(keys) {
+    const raw = keys.map(() => Math.random() + 0.1);
+    const sum = raw.reduce((a, b) => a + b, 0);
+    return Object.fromEntries(keys.map((k, i) => [k, Math.round((raw[i] / sum) * 100)]));
+}
+
+function ratingSummaryNormalizeTo100(obj) {
+    const keys = Object.keys(obj);
+    const values = keys.map((k) => obj[k] ?? 0);
+    const sum = values.reduce((a, b) => a + b, 0);
+    if (sum === 0) return obj;
+    const rounded = keys.map((k, i) => Math.round((values[i] / sum) * 100));
+    let diff = 100 - rounded.reduce((a, b) => a + b, 0);
+    const result = {};
+    keys.forEach((k, i) => {
+        result[k] = rounded[i] + (diff > 0 ? 1 : diff < 0 ? -1 : 0);
+        if (diff !== 0) diff -= diff > 0 ? 1 : -1;
+    });
+    return result;
+}
+
+const RATING_SUMMARY_FIT_KEYS = ['Perfect', 'Loose', 'Tight', 'Too Loose', 'Too Tight'];
+const RATING_SUMMARY_QUALITY_KEYS = ['Excellent', 'Very Good', 'Average', 'Bad', 'Very Bad'];
+
+async function seedRatingSummaries() {
+    if (!process.env.MONGODB_URI) return;
+    const products = await prisma.product.findMany({ select: { id: true }, orderBy: { id: 'asc' } });
+    console.log('🌱 Seeding rating summaries for', products.length, 'products...');
+    let updated = 0;
+    for (const product of products) {
+        const productId = String(product.id);
+        let ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        const reviewCount = await Review.countDocuments({ product_id: productId, is_approved: true });
+        if (reviewCount > 0) {
+            const agg = await Review.aggregate([
+                { $match: { product_id: productId, is_approved: true } },
+                { $group: { _id: '$rating', count: { $sum: 1 } } }
+            ]);
+            let total = 0;
+            agg.forEach((row) => {
+                const star = Number(row._id);
+                if (star >= 1 && star <= 5) {
+                    ratingDistribution[star] = row.count;
+                    total += row.count;
+                }
+            });
+            if (total > 0) {
+                for (let i = 1; i <= 5; i++) ratingDistribution[i] = Math.round((ratingDistribution[i] / total) * 100);
+                const sum = Object.values(ratingDistribution).reduce((a, b) => a + b, 0);
+                if (sum !== 100 && ratingDistribution[5] !== undefined) ratingDistribution[5] += 100 - sum;
+            }
+        }
+        if (reviewCount === 0 || Object.values(ratingDistribution).every((v) => v === 0)) {
+            const raw = [1, 2, 3, 4, 5].map((i) => (i >= 4 ? Math.random() * 30 + 15 : Math.random() * 10 + 1));
+            const s = raw.reduce((a, b) => a + b, 0);
+            for (let i = 1; i <= 5; i++) ratingDistribution[i] = Math.round((raw[i - 1] / s) * 100);
+            const sum = Object.values(ratingDistribution).reduce((a, b) => a + b, 0);
+            if (sum !== 100) ratingDistribution[5] = (ratingDistribution[5] || 0) + 100 - sum;
+        }
+        const fitOpinion = ratingSummaryNormalizeTo100(ratingSummaryRandomPercentages(RATING_SUMMARY_FIT_KEYS));
+        const qualityOpinion = ratingSummaryNormalizeTo100(ratingSummaryRandomPercentages(RATING_SUMMARY_QUALITY_KEYS));
+        await ProductRatingSummary.findOneAndUpdate(
+            { product_id: productId },
+            { product_id: productId, rating_distribution: ratingDistribution, fit_opinion: fitOpinion, quality_opinion: qualityOpinion },
+            { upsert: true, new: true }
+        );
+        updated++;
+        if (updated % 100 === 0) console.log('   Rating summaries:', updated, 'products');
+    }
+    console.log('✅ Rating summary seeding done. Updated:', updated);
+}
+
 // ----- Main seeding routine -----
 
 async function seed() {
@@ -2091,7 +2331,13 @@ async function seed() {
         await seedBeautyFromJson();
         await seedCuratedHomeDecor();
 
-        // 6. Category‑specific feed sections (carousels powered by real products)
+        // 6. Product reviews (MongoDB): random 1–100 reviews per product, random comments
+        await seedReviews();
+
+        // 6b. Rating summaries (distribution + fit/quality opinion) from reviews or random
+        await seedRatingSummaries();
+
+        // 7. Category‑specific feed sections (carousels powered by real products)
         const allCategorySlugs = Object.keys(categorySlugIdMap);
         await seedCategoryFeedSections(allCategorySlugs);
 

@@ -134,11 +134,38 @@ const reviewSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Per-product rating summary: distribution (1-5 stars %) + fit/quality opinion %
+const productRatingSummarySchema = new mongoose.Schema({
+  product_id: { type: String, required: true, unique: true, index: true },
+  rating_distribution: {
+    1: { type: Number, default: 0 },
+    2: { type: Number, default: 0 },
+    3: { type: Number, default: 0 },
+    4: { type: Number, default: 0 },
+    5: { type: Number, default: 0 }
+  },
+  fit_opinion: {
+    Perfect: { type: Number, default: 0 },
+    Loose: { type: Number, default: 0 },
+    Tight: { type: Number, default: 0 },
+    'Too Loose': { type: Number, default: 0 },
+    'Too Tight': { type: Number, default: 0 }
+  },
+  quality_opinion: {
+    Excellent: { type: Number, default: 0 },
+    'Very Good': { type: Number, default: 0 },
+    Average: { type: Number, default: 0 },
+    Bad: { type: Number, default: 0 },
+    'Very Bad': { type: Number, default: 0 }
+  }
+}, { collection: 'product_rating_summaries' });
+
 module.exports = {
   ProductRichContent: mongoose.model('ProductRichContent', productSchema, 'products'),
   HeroBanner: mongoose.model('HeroBanner', heroBannerSchema, 'hero_banners'),
   CategoryFeedSection: mongoose.model('CategoryFeedSection', categoryFeedSectionSchema, 'category_feed_sections'),
   AdminLog: mongoose.model('AdminLog', adminLogSchema),
   ActivityLog: mongoose.model('ActivityLog', activityLogSchema),
-  Review: mongoose.model('Review', reviewSchema)
+  Review: mongoose.model('Review', reviewSchema),
+  ProductRatingSummary: mongoose.model('ProductRatingSummary', productRatingSummarySchema)
 };

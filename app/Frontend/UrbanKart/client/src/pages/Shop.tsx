@@ -64,13 +64,27 @@ export default function Shop() {
     !filters.price_max &&
     !filters.featured;
 
+  const useInfiniteScroll = !filters.search;
+
   const infiniteParams = useMemo(
-    () => ({
-      sort: (searchParams.get("sort") || "random") as "random" | "newest" | "price_low" | "price_high",
-      seed: searchParams.get("seed") ? parseFloat(searchParams.get("seed")!) : 0.5,
-      status: "published" as const,
-    }),
-    [searchString]
+    () =>
+      useInfiniteScroll
+        ? {
+            category: filters.category || undefined,
+            subcategory: filters.subcategory || undefined,
+            sub_subcategory: filters.sub_subcategory || undefined,
+            brand: filters.brand || undefined,
+            price_min: filters.price_min ? Number(filters.price_min) : undefined,
+            price_max: filters.price_max ? Number(filters.price_max) : undefined,
+            size: filters.size || undefined,
+            color: filters.color || undefined,
+            featured: filters.featured || undefined,
+            sort: (searchParams.get("sort") || (isAllCategories ? "random" : "newest")) as "random" | "newest" | "price_low" | "price_high",
+            seed: searchParams.get("seed") ? parseFloat(searchParams.get("seed")!) : 0.5,
+            status: "published" as const,
+          }
+        : undefined,
+    [searchString, useInfiniteScroll, filters.category, filters.subcategory, filters.sub_subcategory, filters.brand, filters.price_min, filters.price_max, filters.size, filters.color, filters.featured, isAllCategories]
   );
 
   const {
@@ -92,15 +106,7 @@ export default function Shop() {
     limit: filters.search ? 1000 : undefined,
   });
 
-  const infiniteQuery = useProductsInfinite(
-    isAllCategories
-      ? {
-          ...infiniteParams,
-          sort: infiniteParams.sort === "random" ? "random" : infiniteParams.sort,
-          seed: infiniteParams.seed,
-        }
-      : undefined
-  );
+  const infiniteQuery = useProductsInfinite(infiniteParams);
 
   const { data: categories = [] } = useCategories();
   const [, setLocation] = useLocation();
@@ -108,7 +114,7 @@ export default function Shop() {
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isAllCategories || !infiniteQuery.hasNextPage || infiniteQuery.isFetchingNextPage) return;
+    if (!useInfiniteScroll || !infiniteQuery.hasNextPage || infiniteQuery.isFetchingNextPage) return;
     const el = scrollSentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -119,11 +125,11 @@ export default function Shop() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isAllCategories, infiniteQuery.hasNextPage, infiniteQuery.isFetchingNextPage, infiniteQuery.fetchNextPage]);
+  }, [useInfiniteScroll, infiniteQuery.hasNextPage, infiniteQuery.isFetchingNextPage, infiniteQuery.fetchNextPage]);
 
-  const products = isAllCategories ? infiniteQuery.products : (productsData?.list ?? []);
-  const totalCount = isAllCategories ? infiniteQuery.total : (productsData?.total ?? products.length);
-  const loadingProductsOrInfinite = loadingProducts || (isAllCategories && infiniteQuery.isLoading);
+  const products = useInfiniteScroll ? infiniteQuery.products : (productsData?.list ?? []);
+  const totalCount = useInfiniteScroll ? infiniteQuery.total : (productsData?.total ?? products.length);
+  const loadingProductsOrInfinite = loadingProducts || (useInfiniteScroll && infiniteQuery.isLoading);
 
   const sortedProducts = useMemo(() => {
     const list = [...(products ?? [])];
@@ -608,7 +614,7 @@ export default function Shop() {
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
-                {isAllCategories && infiniteQuery.hasNextPage && (
+                {useInfiniteScroll && infiniteQuery.hasNextPage && (
                   <div ref={scrollSentinelRef} className="h-10 flex items-center justify-center py-8">
                     {infiniteQuery.isFetchingNextPage && (
                       <div className="animate-pulse text-sm text-muted-foreground">Loading more...</div>

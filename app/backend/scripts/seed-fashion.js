@@ -29,7 +29,8 @@ const prisma = new PrismaClient();
 
 const CSV_PATH = process.env.FASHION_CSV || path.join(__dirname, '../product_images/fashion.csv');
 const IMAGES_BASE = process.env.PRODUCT_IMAGES_DIR || path.join(__dirname, '../product_images');
-const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'b2').toLowerCase();
+// Default to local uploads so seeded media stays on server storage unless explicitly set to "b2"
+const UPLOAD_METHOD = (process.env.UPLOAD_METHOD || 'local').toLowerCase();
 const LOCAL_UPLOAD_PATH = process.env.LOCAL_UPLOAD_PATH || path.join(__dirname, '../uploads');
 const SEED_LIMIT = process.env.FASHION_SEED_LIMIT ? parseInt(process.env.FASHION_SEED_LIMIT, 10) : null;
 

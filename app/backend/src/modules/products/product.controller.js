@@ -1,5 +1,5 @@
 const { prisma } = require('../../config/database');
-const { ProductRichContent } = require('../../models');
+const { ProductRichContent, Review, ProductRatingSummary } = require('../../models');
 const { z } = require('zod');
 const logger = require('../../utils/logger');
 
@@ -384,7 +384,7 @@ exports.getProducts = async (req, res, next) => {
             products = indexed.map((x) => x.p);
         }
 
-        // Attach primary rich content (images, description) for listing cards
+        // Attach primary rich content (images, description) + aggregated review stats for listing cards
         const productIds = products.map((p) => p.id);
         let productsWithRich = products;
         if (productIds.length) {
@@ -400,10 +400,49 @@ exports.getProducts = async (req, res, next) => {
                 }
             });
 
-            productsWithRich = products.map((p) => ({
-                ...p,
-                richContent: richById.get(p.id) || null
-            }));
+            // Aggregate reviews from Mongo (average rating + count per product)
+            const reviewAgg = await Review.aggregate([
+                {
+                    $match: {
+                        product_id: { $in: productIds.map((id) => String(id)) },
+                        is_approved: true
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$product_id',
+                        avgRating: { $avg: '$rating' },
+                        count: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            const reviewById = new Map();
+            reviewAgg.forEach((row) => {
+                if (row && row._id) {
+                    reviewById.set(row._id, {
+                        rating: row.avgRating,
+                        reviewsCount: row.count
+                    });
+                }
+            });
+
+            productsWithRich = products.map((p) => {
+                const richContent = richById.get(p.id) || null;
+                const reviewStats = reviewById.get(String(p.id));
+                const rating =
+                    reviewStats && typeof reviewStats.rating === 'number'
+                        ? Number(reviewStats.rating.toFixed(1))
+                        : null;
+                const reviewsCount = reviewStats ? reviewStats.reviewsCount : 0;
+
+                return {
+                    ...p,
+                    richContent,
+                    rating,
+                    reviewsCount
+                };
+            });
         }
 
         res.set('Cache-Control', 'public, max-age=60');
@@ -441,11 +480,71 @@ exports.getProductBySlug = async (req, res, next) => {
         // Fetch rich content from MongoDB
         const mongoContent = await ProductRichContent.findOne({ pg_id: pgProduct.id });
 
+        // Aggregate review stats for this product
+        const [reviewStats] = await Review.aggregate([
+            {
+                $match: {
+                    product_id: String(pgProduct.id),
+                    is_approved: true
+                }
+            },
+            {
+                $group: {
+                    _id: '$product_id',
+                    avgRating: { $avg: '$rating' },
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        let rating = null;
+        let reviewsCount = 0;
+        if (reviewStats && typeof reviewStats.avgRating === 'number') {
+            rating = Number(reviewStats.avgRating.toFixed(1));
+            reviewsCount = reviewStats.count || 0;
+        }
+
+        // Fetch approved reviews for this product (for display on product page)
+        const reviewsLimit = Math.min(parseInt(process.env.PRODUCT_REVIEWS_LIMIT || '50', 10), 100);
+        const reviews = await Review.find(
+            { product_id: String(pgProduct.id), is_approved: true },
+            { user: 1, rating: 1, title: 1, content: 1, createdAt: 1, likes: 1 }
+        )
+            .sort({ createdAt: -1 })
+            .limit(reviewsLimit)
+            .lean();
+
+        const reviewsForClient = reviews.map((r) => ({
+            id: r._id?.toString(),
+            user: r.user ? { name: r.user.name, avatar: r.user.avatar, verified_purchaser: r.user.verified_purchaser } : null,
+            rating: r.rating,
+            title: r.title || null,
+            content: r.content || null,
+            createdAt: r.createdAt,
+            likes: r.likes ?? 0
+        }));
+
+        const ratingSummaryDoc = await ProductRatingSummary.findOne({ product_id: String(pgProduct.id) }).lean();
+        let ratingSummary = null;
+        if (ratingSummaryDoc) {
+            const categorySlug = pgProduct.category?.slug || '';
+            const isBeauty = String(categorySlug).toLowerCase().startsWith('beauty');
+            ratingSummary = {
+                ratingDistribution: ratingSummaryDoc.rating_distribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+                fitOpinion: isBeauty ? null : (ratingSummaryDoc.fit_opinion || {}),
+                qualityOpinion: ratingSummaryDoc.quality_opinion || {}
+            };
+        }
+
         res.status(200).json({
             success: true,
             data: {
                 ...pgProduct,
-                richContent: mongoContent
+                richContent: mongoContent,
+                rating,
+                reviewsCount,
+                reviews: reviewsForClient,
+                ratingSummary
             }
         });
     } catch (error) {

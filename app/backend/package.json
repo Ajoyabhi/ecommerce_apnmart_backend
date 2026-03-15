@@ -11,6 +11,8 @@
     "seed:fashion": "node scripts/seed-fashion.js",
     "seed:apparel": "node scripts/seed-apparel.js",
     "seed:beauty": "node scripts/seed-beauty.js",
+    "seed:rating-summary": "node scripts/seed-rating-summary.js",
+    "update-prices": "node scripts/update-product-prices.js",
     "test": "jest"
   },
   "keywords": [],
