@@ -24,6 +24,9 @@ router.post('/resend-otp', resendOtpLimiter, validateResendOtp, authController.r
 // ----- Login -----
 router.post('/login', loginLimiter, validateLogin, authController.login);
 
+// ----- Refresh access token using refresh token -----
+router.post('/refresh', authController.refresh);
+
 // ----- Google OAuth -----
 router.get(
     '/google',

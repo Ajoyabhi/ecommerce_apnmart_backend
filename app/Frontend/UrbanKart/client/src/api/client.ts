@@ -37,24 +37,34 @@ export async function fetchApi<T>(
 ): Promise<ApiResponse<T>> {
   const url = path.startsWith("http") ? path : apiUrl(path);
 
-  const token = useAuth.getState().accessToken;
-  const authHeaders: Record<string, string> = {};
-  if (token) {
-    authHeaders["Authorization"] = `Bearer ${token}`;
-  }
+  const executeRequest = async (): Promise<Response> => {
+    const token = useAuth.getState().accessToken;
+    const authHeaders: Record<string, string> = {};
+    if (token) {
+      authHeaders["Authorization"] = `Bearer ${token}`;
+    }
 
-  const res = await fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders,
-      ...options?.headers,
-    },
-  });
+    return fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+        ...options?.headers,
+      },
+    });
+  };
+
+  let res = await executeRequest();
 
   if (res.status === 401) {
-    useAuth.getState().logout();
+    // Try to refresh token once
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      res = await executeRequest();
+    } else {
+      useAuth.getState().logout();
+    }
   }
 
   const json = await res.json().catch(() => ({}));
@@ -62,6 +72,44 @@ export async function fetchApi<T>(
     throw new Error(json?.message || `Request failed: ${res.status}`);
   }
   return json as ApiResponse<T>;
+}
+
+async function tryRefreshToken(): Promise<boolean> {
+  const state = useAuth.getState();
+  const { refreshToken, user } = state;
+
+  if (!refreshToken) {
+    return false;
+  }
+
+  try {
+    const res = await fetch(apiUrl("/auth/refresh"), {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success || !json?.data?.accessToken || !json?.data?.refreshToken) {
+      return false;
+    }
+
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken, user: updatedUser } = json.data;
+
+    // Prefer user from response; fall back to existing user if not present
+    const nextUser = updatedUser || user;
+    if (!nextUser) {
+      return false;
+    }
+
+    useAuth.getState().setAuth(nextUser, newAccessToken, newRefreshToken);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Response from POST /api/v1/admin/upload-media */

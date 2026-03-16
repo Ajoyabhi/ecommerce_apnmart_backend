@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../../config/database');
-const { generateAccessToken, generateRefreshToken } = require('../../services/authService');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../../services/authService');
 const { sendOtpEmail } = require('../../services/brevo.service');
 const {
     generateOtp,
@@ -281,6 +281,49 @@ exports.login = async (req, res, next) => {
         }
 
         return issueTokens(res, user);
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ----- Refresh token -----
+
+exports.refresh = async (req, res, next) => {
+    try {
+        const { refreshToken } = req.body || {};
+
+        if (!refreshToken || typeof refreshToken !== 'string') {
+            return res.status(400).json({ success: false, message: 'Refresh token is required' });
+        }
+
+        let decoded;
+        try {
+            decoded = verifyRefreshToken(refreshToken);
+        } catch (err) {
+            return res.status(401).json({ success: false, message: 'Refresh token is invalid or expired' });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.id },
+            select: { id: true, email: true, firstName: true, lastName: true, role: true, isActive: true, isEmailVerified: true, provider: true },
+        });
+
+        if (!user || !user.isActive) {
+            return res.status(401).json({ success: false, message: 'User no longer exists or is inactive' });
+        }
+
+        // Issue new pair so access token stays short-lived while keeping session alive
+        const newAccessToken = generateAccessToken(user.id);
+        const newRefreshToken = generateRefreshToken(user.id);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                user: toUserDto(user),
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
+            },
+        });
     } catch (err) {
         next(err);
     }
