@@ -11,10 +11,10 @@ export function Footer() {
             <div className="font-display font-black text-2xl tracking-tighter flex items-center gap-2 mb-6">
               <img
                 src="https://res.cloudinary.com/dbmlo1jox/image/upload/v1773637331/bgremove_dyvwcm.png"
-                alt="Apnamart"
+                alt="Anpamart"
                 className="w-10 h-10 object-cover"
               />
-              Apnamart
+              Anpamart
             </div>
             <p className="text-muted-foreground mb-6 max-w-sm">
               Your premium destination for fashion, lifestyle, and beauty. Curated collections for the modern aesthetic.
@@ -110,7 +110,7 @@ export function Footer() {
         </div>
         
         <div className="border-t border-border mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© 2024 Apnamart. All rights reserved.</p>
+          <p>© 2024 Anpamart. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/privacy-policy" className="hover:text-primary">
               Privacy Policy

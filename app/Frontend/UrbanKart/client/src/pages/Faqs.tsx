@@ -22,7 +22,7 @@ const faqs = [
   {
     question: "How do I contact support?",
     answer:
-      "You can email us any time at support@apnamart.com. We aim to respond within 24 business hours.",
+      "You can email us any time at support@anpamart.com. We aim to respond within 24 business hours.",
   },
 ];
 
@@ -33,7 +33,7 @@ export default function Faqs() {
         FAQs
       </h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Quick answers to the most common questions about shopping on Apnamart.
+        Quick answers to the most common questions about shopping on Anpamart.
       </p>
 
       <div className="space-y-6">

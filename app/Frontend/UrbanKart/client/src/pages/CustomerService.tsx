@@ -5,7 +5,7 @@ export default function CustomerService() {
         Customer Service
       </h1>
       <p className="text-sm text-muted-foreground mb-10">
-        We&apos;re here to help with anything related to your Apnamart orders and
+        We&apos;re here to help with anything related to your Anpamart orders and
         account.
       </p>
 
@@ -18,10 +18,10 @@ export default function CustomerService() {
             <li>
               <span className="font-medium text-foreground">Email:</span>{" "}
               <a
-                href="mailto:support@apnamart.com"
+                href="mailto:support@anpamart.com"
                 className="text-primary hover:underline"
               >
-                support@apnamart.com
+                support@anpamart.com
               </a>
             </li>
             <li>
@@ -62,10 +62,10 @@ export default function CustomerService() {
             Your feedback helps us improve. If you&apos;d like to share a
             suggestion or raise a complaint, please email{" "}
             <a
-              href="mailto:support@apnamart.com"
+              href="mailto:support@anpamart.com"
               className="text-primary hover:underline"
             >
-              support@apnamart.com
+              support@anpamart.com
             </a>{" "}
             with &quot;Feedback&quot; or &quot;Complaint&quot; in the subject line.
           </p>

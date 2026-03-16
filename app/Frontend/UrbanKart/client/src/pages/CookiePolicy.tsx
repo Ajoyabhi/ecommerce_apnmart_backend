@@ -14,7 +14,7 @@ export default function CookiePolicy() {
           <p>
             Cookies are small text files that are stored on your device when you visit
             a website. They help us remember your preferences, understand how you use
-            Apnamart, and improve your shopping experience.
+            Anpamart, and improve your shopping experience.
           </p>
         </section>
 
@@ -63,7 +63,7 @@ export default function CookiePolicy() {
             <li>Deleting cookies that have already been set.</li>
           </ul>
           <p className="mt-2">
-            If you block or delete certain cookies, some features of Apnamart may not
+            If you block or delete certain cookies, some features of Anpamart may not
             work as intended.
           </p>
         </section>
@@ -73,10 +73,10 @@ export default function CookiePolicy() {
           <p>
             If you have any questions about how we use cookies, please contact us at{" "}
             <a
-              href="mailto:support@apnamart.com"
+              href="mailto:support@anpamart.com"
               className="text-primary hover:underline"
             >
-              support@apnamart.com
+              support@anpamart.com
             </a>
             .
           </p>

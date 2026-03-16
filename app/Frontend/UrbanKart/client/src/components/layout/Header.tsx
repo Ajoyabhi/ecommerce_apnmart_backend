@@ -149,11 +149,11 @@ export function Header() {
               <Link href="/" className="font-display font-black text-2xl tracking-tighter shrink-0 flex items-center gap-0">
                 <img
                   src="https://res.cloudinary.com/dbmlo1jox/image/upload/v1773637331/bgremove_dyvwcm.png"
-                  alt="Apnamart"
+                  alt="Anpamart"
                   className="h-12 w-14 rounded-lg m-2"
                   style={{ objectPosition: 'center top' }}
                 />
-                <span className="hidden sm:inline">Apnamart</span>
+                <span className="hidden sm:inline">Anpamart</span>
               </Link>
             </div>
 

@@ -12,7 +12,7 @@ export default function ReturnsExchanges() {
         <section>
           <h2 className="font-semibold text-foreground mb-2">1. Our Promise</h2>
           <p>
-            We want you to love everything you buy from Apnamart. If something
+            We want you to love everything you buy from Anpamart. If something
             isn&apos;t right, we&apos;re here to help with a simple and transparent
             returns process.
           </p>
@@ -46,10 +46,10 @@ export default function ReturnsExchanges() {
             <li>
               Email us at{" "}
               <a
-                href="mailto:support@apnamart.com"
+                href="mailto:support@anpamart.com"
                 className="text-primary hover:underline"
               >
-                support@apnamart.com
+                support@anpamart.com
               </a>{" "}
               with your order ID and item details.
             </li>

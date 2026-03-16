@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
         <section>
           <h2 className="font-semibold text-foreground mb-2">1. Overview</h2>
           <p>
-            At Apnamart, we care deeply about your privacy. This Policy explains
+            At Anpamart, we care deeply about your privacy. This Policy explains
             what information we collect when you use our website, how we use it,
             and the choices you have.
           </p>
@@ -63,7 +63,7 @@ export default function PrivacyPolicy() {
           </h2>
           <p>
             We never sell your personal data. We only share it with trusted
-            third parties who help us run Apnamart, such as payment providers,
+            third parties who help us run Anpamart, such as payment providers,
             logistics partners, analytics and email service providers. These
             partners only receive the minimum data necessary to perform their
             services and must protect it appropriately.
@@ -116,10 +116,10 @@ export default function PrivacyPolicy() {
             If you have questions about this Privacy Policy or our data
             practices, please contact us at{" "}
             <a
-              href="mailto:support@apnamart.com"
+              href="mailto:support@anpamart.com"
               className="text-primary hover:underline"
             >
-              support@apnamart.com
+              support@anpamart.com
             </a>
             .
           </p>

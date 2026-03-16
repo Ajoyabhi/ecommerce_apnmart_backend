@@ -12,7 +12,7 @@ export default function TermsOfService() {
         <section>
           <h2 className="font-semibold text-foreground mb-2">1. Agreement</h2>
           <p>
-            By accessing or using the Apnamart website and placing an order, you
+            By accessing or using the Anpamart website and placing an order, you
             agree to be bound by these Terms of Service and our Privacy Policy.
             If you do not agree, please do not use our services.
           </p>
@@ -70,7 +70,7 @@ export default function TermsOfService() {
             5. Intellectual Property
           </h2>
           <p>
-            All content on Apnamart, including logos, graphics, product images
+            All content on Anpamart, including logos, graphics, product images
             and text, is owned by or licensed to us and protected by applicable
             intellectual property laws. You may not copy, modify, distribute or
             use our content without our prior written consent, except where
@@ -83,7 +83,7 @@ export default function TermsOfService() {
             6. Limitation of Liability
           </h2>
           <p>
-            To the maximum extent permitted by law, Apnamart will not be liable
+            To the maximum extent permitted by law, Anpamart will not be liable
             for any indirect, incidental or consequential damages arising from
             your use of the site or purchase of products. Our total liability
             for any claim related to a purchase will not exceed the amount you
@@ -110,10 +110,10 @@ export default function TermsOfService() {
           <p>
             For questions about these Terms, please contact us at{" "}
             <a
-              href="mailto:support@apnamart.com"
+              href="mailto:support@anpamart.com"
               className="text-primary hover:underline"
             >
-              support@apnamart.com
+              support@anpamart.com
             </a>
             .
           </p>
