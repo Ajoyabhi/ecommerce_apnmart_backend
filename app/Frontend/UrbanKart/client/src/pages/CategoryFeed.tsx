@@ -25,6 +25,7 @@ export default function CategoryFeed() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug || "";
   const [, setLocation] = useLocation();
+  const isFashionRoot = slug === "fashion";
 
   // Map storefront category slugs to content feed slugs, if they differ
   const feedSlug =
@@ -51,6 +52,35 @@ export default function CategoryFeed() {
   const subcategories = category?.children ?? [];
   const categoryName = category?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
   const categoryImage = category?.imageUrl;
+
+  const newArrivalsSection =
+    products.length > 0 && (
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-accent" />
+            </div>
+            <div>
+              <h2 className="font-display font-bold text-2xl">New Arrivals</h2>
+              <p className="text-sm text-muted-foreground">Latest additions to {categoryName}</p>
+            </div>
+          </div>
+          <Link
+            href={`/shop?category=${slug}`}
+            className="text-sm font-semibold text-primary hover:underline flex items-center gap-1 hidden sm:flex"
+            data-testid="link-view-all-arrivals"
+          >
+            View All <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {products.slice(0, 8).map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+    );
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -129,6 +159,8 @@ export default function CategoryFeed() {
         </section>
       )}
 
+      {isFashionRoot && newArrivalsSection}
+
       {feedSections.length > 0 && (
         <div className="space-y-12 mt-12">
           {feedSections
@@ -167,33 +199,7 @@ export default function CategoryFeed() {
         </section>
       )}
 
-      {products.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-accent" />
-              </div>
-              <div>
-                <h2 className="font-display font-bold text-2xl">New Arrivals</h2>
-                <p className="text-sm text-muted-foreground">Latest additions to {categoryName}</p>
-              </div>
-            </div>
-            <Link
-              href={`/shop?category=${slug}`}
-              className="text-sm font-semibold text-primary hover:underline flex items-center gap-1 hidden sm:flex"
-              data-testid="link-view-all-arrivals"
-            >
-              View All <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {products.slice(0, 8).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </section>
-      )}
+      {!isFashionRoot && newArrivalsSection}
 
       {subcategories.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
