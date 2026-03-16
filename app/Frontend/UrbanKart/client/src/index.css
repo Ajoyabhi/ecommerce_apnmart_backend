@@ -91,6 +91,19 @@
     text-wrap: balance;
   }
   
+  .marquee-track {
+    animation: home-marquee 24s linear infinite;
+  }
+
+  @keyframes home-marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  
   /* Hide scrollbar for clean horizontal scrolls */
   .no-scrollbar::-webkit-scrollbar {
     display: none;

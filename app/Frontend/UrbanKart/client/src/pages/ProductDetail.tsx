@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "wouter";
 import { useProduct, useProducts } from "@/hooks/use-shop";
 import { useCart } from "@/store/use-cart";
@@ -59,6 +59,11 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [zoomHover, setZoomHover] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [isAdding, setIsAdding] = useState(false);
+  const [addSuccess, setAddSuccess] = useState(false);
+  const addTimeoutRef = useRef<number | null>(null);
+  const [wishlistBump, setWishlistBump] = useState(false);
+  const wishlistTimeoutRef = useRef<number | null>(null);
 
   const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -66,6 +71,13 @@ export default function ProductDetail() {
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setZoomPos({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
+  };
+
+  const handleScrollToReviews = () => {
+    const el = document.getElementById("product-ratings");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   useEffect(() => {
@@ -77,6 +89,17 @@ export default function ProductDetail() {
       setSelectedSize(product.sizes[0]);
     }
   }, [product, selectedColor, selectedSize]);
+
+  useEffect(() => {
+    return () => {
+      if (addTimeoutRef.current) {
+        clearTimeout(addTimeoutRef.current);
+      }
+      if (wishlistTimeoutRef.current) {
+        clearTimeout(wishlistTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -133,11 +156,38 @@ export default function ProductDetail() {
       variantSku,
     });
 
+    setIsAdding(true);
+    setAddSuccess(true);
+
     toast({
       title: "Added to Cart",
       description: `${quantity}x ${product.name} added to your cart.`,
     });
+
+    if (addTimeoutRef.current) {
+      clearTimeout(addTimeoutRef.current);
+    }
+    addTimeoutRef.current = window.setTimeout(() => {
+      setAddSuccess(false);
+      setIsAdding(false);
+    }, 1500);
   };
+
+  const handleWishlistToggle = () => {
+    toggleWishlist(product.id);
+    setWishlistBump(true);
+    if (wishlistTimeoutRef.current) {
+      clearTimeout(wishlistTimeoutRef.current);
+    }
+    wishlistTimeoutRef.current = window.setTimeout(() => {
+      setWishlistBump(false);
+    }, 180);
+  };
+
+  const hasDiscount =
+    product.strikePrice != null && product.strikePrice > product.price;
+  const maxQuantity =
+    product.stock && product.stock > 0 ? Math.min(product.stock, 10) : 1;
 
   return (
     <div className="bg-background min-h-screen pt-8 pb-24">
@@ -219,22 +269,30 @@ export default function ProductDetail() {
                 </p>
               )}
 
-            <h1 className="font-display font-bold text-3xl md:text-4xl text-foreground mb-4 leading-tight">
+            <h1 className="font-display font-black text-3xl md:text-4xl text-foreground mb-4 leading-tight tracking-tight">
               {product.name}
             </h1>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6 pb-6 border-b border-border">
               {(product.reviewsCount ?? 0) > 0 && product.rating != null && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <RatingStars
-                    rating={Number(product.rating)}
-                    className="w-5 h-5"
-                  />
-                  <span className="font-medium text-foreground">{product.rating}</span>
-                  <span className="text-muted-foreground text-sm">
+                <button
+                  type="button"
+                  onClick={handleScrollToReviews}
+                  className="flex items-center gap-2 flex-wrap text-left group"
+                >
+                  <div className="flex items-center gap-1">
+                    <RatingStars
+                      rating={Number(product.rating)}
+                      className="w-5 h-5"
+                    />
+                    <span className="font-medium text-foreground">
+                      {product.rating}
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground text-sm group-hover:text-primary group-hover:underline underline-offset-2 cursor-pointer">
                     {product.reviewsCount} reviews
                   </span>
-                </div>
+                </button>
               )}
               <div className="text-green-600 font-medium flex items-center gap-1">
                 <Check className="w-4 h-4" />
@@ -243,7 +301,12 @@ export default function ProductDetail() {
             </div>
 
             <div className="flex flex-wrap items-end gap-3 mb-8">
-              <span className="font-display font-black text-4xl text-foreground">
+              <span
+                className={cn(
+                  "font-display font-black text-4xl",
+                  hasDiscount ? "text-accent" : "text-foreground"
+                )}
+              >
                 {formatPrice(product.price)}
               </span>
               {product.strikePrice != null &&
@@ -262,9 +325,14 @@ export default function ProductDetail() {
             </div>
 
             {product.description && (
-              <p className="text-muted-foreground leading-relaxed mb-8 text-lg">
-                {product.description}
-              </p>
+              <div className="mb-8 space-y-2">
+                <h2 className="text-sm font-semibold tracking-widest uppercase text-muted-foreground">
+                  Description
+                </h2>
+                <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                  {product.description}
+                </p>
+              </div>
             )}
 
             {product.colors && product.colors.length > 0 && (
@@ -281,15 +349,20 @@ export default function ProductDetail() {
                   {product.colors.map((color) => (
                     <button
                       key={color}
+                      type="button"
                       onClick={() => setSelectedColor(color)}
                       className={cn(
-                        "px-4 py-2 rounded-xl border-2 font-medium text-sm transition-all",
+                        "relative w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all",
                         selectedColor === color
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border hover:border-muted-foreground"
+                          ? "border-primary shadow-sm"
+                          : "border-transparent hover:border-muted-foreground"
                       )}
+                      title={color}
                     >
-                      {color}
+                      <span
+                        className="w-7 h-7 rounded-full border border-border"
+                        style={{ backgroundColor: color.toLowerCase() }}
+                      />
                     </button>
                   ))}
                 </div>
@@ -313,9 +386,10 @@ export default function ProductDetail() {
                   {product.sizes.map((size) => (
                     <button
                       key={size}
+                      type="button"
                       onClick={() => setSelectedSize(size)}
                       className={cn(
-                        "min-w-[3rem] h-12 px-4 rounded-xl border-2 font-medium transition-all flex items-center justify-center",
+                        "min-w-[3rem] h-10 px-4 rounded-full border-2 font-medium text-sm transition-all flex items-center justify-center",
                         selectedSize === size
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border hover:border-primary/50 text-foreground"
@@ -328,23 +402,79 @@ export default function ProductDetail() {
               </div>
             )}
 
+            <div className="flex items-center gap-6 mb-6">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Quantity
+                </span>
+                <div className="inline-flex items-center rounded-full border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantity((q) => Math.max(1, q - 1))
+                    }
+                    className="w-9 h-9 flex items-center justify-center text-lg border-r border-border hover:bg-muted disabled:opacity-40"
+                    disabled={quantity <= 1}
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center text-sm font-medium select-none">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantity((q) => Math.min(maxQuantity, q + 1))
+                    }
+                    className="w-9 h-9 flex items-center justify-center text-lg border-l border-border hover:bg-muted disabled:opacity-40"
+                    disabled={quantity >= maxQuantity}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="flex gap-4 mb-10">
               <button
                 onClick={handleAddToCart}
-                disabled={product.stock === 0}
+                disabled={product.stock === 0 || isAdding}
                 className="flex-1 bg-primary text-primary-foreground py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-primary/90 hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ShoppingBag className="w-5 h-5" />
-                {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+                {product.stock === 0 ? (
+                  <>
+                    <ShoppingBag className="w-5 h-5" />
+                    Out of Stock
+                  </>
+                ) : isAdding ? (
+                  <>
+                    <span className="h-4 w-4 rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground animate-spin" />
+                    Adding...
+                  </>
+                ) : addSuccess ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Added ✓
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-5 h-5" />
+                    Add to Cart
+                  </>
+                )}
               </button>
 
               <button
-                onClick={() => toggleWishlist(product.id)}
-                className="w-16 shrink-0 bg-card border-2 border-border flex items-center justify-center rounded-xl hover:border-primary/50 transition-colors"
+                type="button"
+                onClick={handleWishlistToggle}
+                className={cn(
+                  "w-16 shrink-0 bg-card border-2 border-border flex items-center justify-center rounded-xl hover:border-primary/50 transition-colors transition-transform",
+                  wishlistBump && "scale-110"
+                )}
               >
                 <Heart
                   className={cn(
-                    "w-6 h-6 transition-colors",
+                    "w-6 h-6 transition-colors transition-transform",
                     isWished && "fill-accent text-accent"
                   )}
                 />
@@ -379,7 +509,10 @@ export default function ProductDetail() {
       </div>
 
       {(product.rating != null || product.ratingSummary) && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-12 border-t border-border">
+        <section
+          id="product-ratings"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-12 border-t border-border"
+        >
           <h2 className="font-display font-bold text-2xl md:text-3xl text-foreground mb-6">
             Ratings
           </h2>

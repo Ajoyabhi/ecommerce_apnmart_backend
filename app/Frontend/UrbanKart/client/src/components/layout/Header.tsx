@@ -316,7 +316,7 @@ const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: str
         </div>
 
         <div className="border-t border-border/50 bg-background/50 hidden md:block">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar">
               {navItems.map((item) => {
                 const isElectronics = isElectronicsNavItem(item);
@@ -357,93 +357,82 @@ const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: str
                 );
               })}
             </nav>
-          </div>
-        </div>
 
-        {activeMega && megaCategory && megaCategory.subcategories && megaCategory.subcategories.length > 0 && (
-          <div
-            className="absolute left-0 right-0 z-50 bg-card border-b border-border shadow-xl hidden md:block"
-            onMouseEnter={() => handleMegaEnter(activeMega)}
-            onMouseLeave={handleMegaLeave}
-          >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div className="grid grid-cols-5 gap-8">
-                {megaCategory.subcategories.map((sub) => {
-                  const isComingSoon = isComingSoonHomeSubcategory(megaCategory.slug, sub.slug);
-                  return (
-                    <div key={sub.id}>
-                      {isComingSoon ? (
-                        <>
-                          <div
-                            className="font-semibold text-sm text-muted-foreground block mb-1 uppercase tracking-wider cursor-default select-none"
-                            data-testid={`mega-sub-${sub.slug}`}
-                          >
-                            {sub.name}
-                          </div>
-                          <div className="text-xs font-medium text-primary/80 uppercase tracking-widest">
-                            Coming soon
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}`}
-                            className="font-semibold text-sm text-foreground hover:text-primary transition-colors block mb-3 uppercase tracking-wider"
-                            onClick={() => setActiveMega(null)}
-                            data-testid={`mega-sub-${sub.slug}`}
-                          >
-                            {sub.name}
-                          </Link>
-                          {sub.sub_subcategories && sub.sub_subcategories.length > 0 && (
-                            <ul className="space-y-2">
-                              {sub.sub_subcategories.map((child) => (
-                                <li key={child.id}>
-                                  <Link
-                                    href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}&sub_subcategory=${child.slug}`}
-                                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                                    onClick={() => setActiveMega(null)}
-                                    data-testid={`mega-child-${child.slug}`}
-                                  >
-                                    {child.name}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
+            {activeMega && megaCategory && megaCategory.subcategories && megaCategory.subcategories.length > 0 && (
+              <div
+                className="absolute left-0 right-0 top-full z-50 hidden md:block"
+                onMouseEnter={() => handleMegaEnter(activeMega)}
+                onMouseLeave={handleMegaLeave}
+              >
+                <div className="mt-2 mx-auto w-full max-w-5xl rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in-0 slide-in-from-top-2">
+                  <div className="py-6 px-5">
+                    <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                    {megaCategory.subcategories.map((sub) => {
+                      const isComingSoon = isComingSoonHomeSubcategory(megaCategory.slug, sub.slug);
+                      return (
+                        <div key={sub.id}>
+                          {isComingSoon ? (
+                            <>
+                              <div
+                                className="font-semibold text-sm text-muted-foreground block mb-1 uppercase tracking-wider cursor-default select-none"
+                                data-testid={`mega-sub-${sub.slug}`}
+                              >
+                                {sub.name}
+                              </div>
+                              <div className="text-xs font-medium text-primary/80 uppercase tracking-widest">
+                                Coming soon
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Link
+                                href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}`}
+                                className="font-semibold text-sm text-foreground hover:text-primary transition-colors block mb-3 uppercase tracking-wider"
+                                onClick={() => setActiveMega(null)}
+                                data-testid={`mega-sub-${sub.slug}`}
+                              >
+                                {sub.name}
+                              </Link>
+                              {sub.sub_subcategories && sub.sub_subcategories.length > 0 && (
+                                <ul className="space-y-2">
+                                  {sub.sub_subcategories.map((child) => (
+                                    <li key={child.id}>
+                                      <Link
+                                        href={`/shop?category=${megaCategory.slug}&subcategory=${sub.slug}&sub_subcategory=${child.slug}`}
+                                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                                        onClick={() => setActiveMega(null)}
+                                        data-testid={`mega-child-${child.slug}`}
+                                      >
+                                        {child.name}
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
+                        </div>
+                      );
+                    })}
 
-                {megaCategory.imageUrl && (
-                  <div className="col-span-1 relative rounded-xl overflow-hidden">
-                    <img
-                      src={getMediaUrl(megaCategory.imageUrl)}
-                      alt={megaCategory.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <p className="text-white text-sm font-bold">Explore {megaCategory.name}</p>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
+                      <Link
+                        href={`/category/${activeMega}`}
+                        className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+                        onClick={() => setActiveMega(null)}
+                        data-testid={`mega-view-all-${activeMega}`}
+                      >
+                        View all {megaCategory.name} <ChevronRight className="w-4 h-4" />
+                      </Link>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
-
-              <div className="mt-6 pt-6 border-t border-border flex items-center justify-between">
-                <Link
-                  href={`/category/${activeMega}`}
-                  className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
-                  onClick={() => setActiveMega(null)}
-                  data-testid={`mega-view-all-${activeMega}`}
-                >
-                  View all {megaCategory.name} <ChevronRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </header>
 
       {mobileMenuOpen && (

@@ -26,6 +26,25 @@ const FALLBACK_HERO = {
   color: "text-white",
 };
 
+const SERVICE_HIGHLIGHTS = [
+  {
+    title: "Free Shipping",
+    desc: "On orders over ₹1,000",
+  },
+  {
+    title: "Secure Payment",
+    desc: "100% secure checkout",
+  },
+  {
+    title: "Fast Delivery",
+    desc: "Within 2-3 business days",
+  },
+  {
+    title: "Premium Quality",
+    desc: "Top brands & materials",
+  },
+];
+
 export default function Home() {
   const { data: heroBanners = [] } = useHeroBanners();
   const { data: featuredData, isLoading: loadingFeatured } = useProducts({
@@ -207,39 +226,19 @@ export default function Home() {
         </Carousel>
       </section>
 
-      <section className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              {
-                icon: Truck,
-                title: "Free Shipping",
-                desc: "On orders over ₹2,000",
-              },
-              {
-                icon: ShieldCheck,
-                title: "Secure Payment",
-                desc: "100% secure checkout",
-              },
-              { icon: Zap, title: "Fast Delivery", desc: "Within 2-3 business days" },
-              {
-                icon: Star,
-                title: "Premium Quality",
-                desc: "Top brands & materials",
-              },
-            ].map((feature, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center shrink-0">
-                  <feature.icon className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm">{feature.title}</h4>
-                  <p className="text-xs text-muted-foreground">
-                    {feature.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
+      <section className="border-b border-border bg-primary text-primary-foreground text-[11px] sm:text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden py-2">
+            <div className="flex gap-10 whitespace-nowrap marquee-track">
+              {[...SERVICE_HIGHLIGHTS, ...SERVICE_HIGHLIGHTS].map(
+                (feature, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="font-semibold">{feature.title}</span>
+                    <span className="opacity-80">{feature.desc}</span>
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
       </section>

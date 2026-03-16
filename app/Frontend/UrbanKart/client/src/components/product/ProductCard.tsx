@@ -125,7 +125,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
         )}
 
         <div className="flex items-baseline gap-2">
-          <span className="font-display font-bold text-lg text-foreground">
+          <span className="font-display font-bold text-lg text-accent">
             {formatPrice(product.price)}
           </span>
           {product.strikePrice != null &&
