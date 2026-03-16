@@ -35,8 +35,35 @@ function applyDiscount(basePriceDecimal, discountPercent) {
     const factor = 1 - discountPercent / 100;
     const discounted = base * factor;
 
-    // Round to 2 decimal places to keep pricing clean
-    return Math.round(discounted * 100) / 100;
+    // First round to 2 decimals
+    let price = Math.round(discounted * 100) / 100;
+
+    // Enforce a minimum price of 100
+    if (price < 100) {
+        price = 100;
+    }
+
+    // To avoid looking too "fabricated", only some products follow the 99-pattern.
+    // ~60% of products will be snapped to an xx99 price.
+    if (Math.random() < 0.6) {
+        const hundreds = Math.floor(price / 100);
+        const snapped = hundreds * 100 + 99;
+        // Ensure we still respect the 100 minimum
+        price = Math.max(100, snapped);
+    } else {
+        // Remaining ~40%: mix of regular rounded prices and clean multiples of 100
+        const r = Math.random();
+        if (r < 0.5) {
+            // Keep as-is (just the rounded price)
+            // no-op
+        } else {
+            // Snap to nearest 100 (e.g. 523 -> 500, 581 -> 600)
+            const hundreds = Math.round(price / 100);
+            price = Math.max(100, hundreds * 100);
+        }
+    }
+
+    return price;
 }
 
 async function main() {
