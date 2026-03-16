@@ -10,7 +10,7 @@ export function Footer() {
           <div className="lg:col-span-2">
             <div className="font-display font-black text-2xl tracking-tighter flex items-center gap-2 mb-6">
               <img
-                src="https://res.cloudinary.com/dbmlo1jox/image/upload/v1773217272/Untitled_pkxap0.png"
+                src="https://res.cloudinary.com/dbmlo1jox/image/upload/v1773637331/bgremove_dyvwcm.png"
                 alt="Apnamart"
                 className="w-10 h-10 object-cover"
               />
