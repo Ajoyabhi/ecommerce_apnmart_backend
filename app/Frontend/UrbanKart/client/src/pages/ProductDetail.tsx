@@ -486,7 +486,7 @@ export default function ProductDetail() {
                 <Truck className="w-6 h-6 text-primary" />
                 <h4 className="font-bold text-sm">Free Delivery</h4>
                 <p className="text-xs text-muted-foreground">
-                  On orders over ₹2,000
+                  On orders over ₹1,000
                 </p>
               </div>
               <div className="flex flex-col gap-2">
