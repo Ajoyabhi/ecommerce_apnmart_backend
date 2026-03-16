@@ -242,15 +242,22 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <div className="flex items-end gap-3 mb-8">
+            <div className="flex flex-wrap items-end gap-3 mb-8">
               <span className="font-display font-black text-4xl text-foreground">
                 {formatPrice(product.price)}
               </span>
               {product.strikePrice != null &&
                 product.strikePrice > product.price && (
-                  <span className="text-xl text-muted-foreground line-through mb-1">
-                    {formatPrice(product.strikePrice)}
-                  </span>
+                  <>
+                    <span className="text-xl text-muted-foreground line-through mb-1">
+                      {formatPrice(product.strikePrice)}
+                    </span>
+                    {product.discount != null && product.discount > 0 && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-accent text-accent-foreground">
+                        {product.discount}% OFF
+                      </span>
+                    )}
+                  </>
                 )}
             </div>
 

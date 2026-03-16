@@ -105,6 +105,8 @@ model Product {
   name         String
   slug         String           @unique
   basePrice    Decimal          @db.Decimal(10, 2)
+  /// Optional percentage discount (e.g. 20 means 20% OFF)
+  discountPct  Int?
   categoryId   String
   category     Category         @relation(fields: [categoryId], references: [id])
   brand        String?          // optional brand slug/name for filtering

@@ -60,8 +60,16 @@ export function mapBackendProductToProduct(p: BackendProduct): Product {
     name: p.name,
     slug: p.slug,
     price,
-    strikePrice: null,
-    discount: null,
+    // When discountPct is present, treat basePrice as discounted price,
+    // compute original "strike" price and expose discount percentage.
+    strikePrice:
+      (p as any).discountPct != null && typeof (p as any).discountPct === "number"
+        ? Number((price / (1 - (p as any).discountPct / 100)).toFixed(2))
+        : null,
+    discount:
+      (p as any).discountPct != null && typeof (p as any).discountPct === "number"
+        ? (p as any).discountPct
+        : null,
     category: p.category ?? null,
     images,
     description:

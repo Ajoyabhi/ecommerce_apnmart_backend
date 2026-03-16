@@ -324,7 +324,7 @@ exports.requestCodOtp = async (req, res, next) => {
 };
 
 // Checkout — POST /api/v1/user/orders/checkout (see CHECKOUT_API.md)
-const TAX_RATE = 0.18;
+const TAX_RATE = 0.0;
 const FREE_SHIPPING_THRESHOLD = 500;
 const SHIPPING_COST = 50;
 
@@ -484,10 +484,10 @@ exports.checkout = async (req, res, next) => {
       });
     }
 
-    const taxAmount = Math.round(calculatedSubtotal * TAX_RATE * 100) / 100;
+    const taxAmount = 0;
     const shippingAmount =
       calculatedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
-    const total = Math.round((calculatedSubtotal + taxAmount + shippingAmount) * 100) / 100;
+    const total = Math.round((calculatedSubtotal + shippingAmount) * 100) / 100;
 
     const paymentMethod = payload.paymentMethod || 'cod';
     const initialStatus =

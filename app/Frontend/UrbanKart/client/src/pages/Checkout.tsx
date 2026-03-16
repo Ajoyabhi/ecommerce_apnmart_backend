@@ -63,7 +63,7 @@ const PAYMENT_METHODS = [
 ];
 
 const SHIPPING_COST = 0;
-const TAX_RATE = 0.18;
+const TAX_RATE = 0;
 
 function usePincodeAPI() {
   const [postOffices, setPostOffices] = useState<PostOfficeInfo[]>([]);
@@ -438,8 +438,8 @@ export default function Checkout() {
   }
 
   const subtotal = getCartTotal();
-  const tax = +(subtotal * TAX_RATE).toFixed(2);
-  const total = +(subtotal + SHIPPING_COST + tax).toFixed(2);
+  const tax = 0;
+  const total = +(subtotal + SHIPPING_COST).toFixed(2);
 
   const handlePlaceOrder = async () => {
     const shippingErr = validateAddress(shippingAddress, true);
@@ -729,7 +729,7 @@ export default function Checkout() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tax (GST 18%)</span>
+                      <span className="text-muted-foreground">Tax</span>
                       <span data-testid="text-tax">{formatPrice(tax)}</span>
                     </div>
                     <Separator />
