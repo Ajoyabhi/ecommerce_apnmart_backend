@@ -25,7 +25,7 @@ export default function CategoryFeed() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug || "";
   const [, setLocation] = useLocation();
-  const isFashionRoot = slug === "fashion";
+  const isTopArrivalsCategory = slug === "fashion" || slug === "home";
 
   // Map storefront category slugs to content feed slugs, if they differ
   const feedSlug =
@@ -159,7 +159,7 @@ export default function CategoryFeed() {
         </section>
       )}
 
-      {isFashionRoot && newArrivalsSection}
+      {isTopArrivalsCategory && newArrivalsSection}
 
       {feedSections.length > 0 && (
         <div className="space-y-12 mt-12">
@@ -199,7 +199,7 @@ export default function CategoryFeed() {
         </section>
       )}
 
-      {!isFashionRoot && newArrivalsSection}
+      {!isTopArrivalsCategory && newArrivalsSection}
 
       {subcategories.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">

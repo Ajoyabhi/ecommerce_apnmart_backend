@@ -80,8 +80,7 @@ export function Header() {
 
   const isElectronicsNavItem = (item: NavItem) => item.slug === "electronics";
 
-  const isComingSoonHomeSubcategory = (parentSlug?: string | null, subSlug?: string | null) =>
-    parentSlug === "home" && (subSlug === "home-kitchen" || subSlug === "home-furnishing");
+const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: string | null) => false;
 
   const findMenuCategory = useCallback(
     (slug: string): MenuCategory | null => {
