@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
-  useAdminProducts,
+  useAdminProductsPaginated,
   useDeleteProduct,
   useCreateProduct,
   useUpdateProduct,
@@ -34,6 +34,8 @@ interface ProductFormData {
   categoryId: string;
   status: string;
   isFeatured: boolean;
+  isTrending: boolean;
+  isNewArrival: boolean;
   description: string;
   primaryImage: string;
   galleryImages: string[];
@@ -50,13 +52,19 @@ const EMPTY_FORM: ProductFormData = {
   categoryId: "",
   status: "draft",
   isFeatured: false,
+  isTrending: false,
+  isNewArrival: false,
   description: "",
   primaryImage: "",
   galleryImages: [],
 };
 
 export default function AdminProducts() {
-  const { data: products = [], isLoading } = useAdminProducts();
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
+  const { data, isLoading } = useAdminProductsPaginated({ page, limit: pageSize });
+  const products = data?.products ?? [];
   const { data: categories = [] } = useAdminCategories();
   const deleteProduct = useDeleteProduct();
   const createProduct = useCreateProduct();
@@ -145,6 +153,8 @@ export default function AdminProducts() {
       categoryId: product.categoryId || "",
       status: product.status || "draft",
       isFeatured: product.isFeatured,
+      isTrending: (product as any).isTrending ?? false,
+      isNewArrival: (product as any).isNewArrival ?? false,
       description:
         product.richContent?.description_html?.replace(/<[^>]*>/g, "") ?? "",
       primaryImage: primaryUrl,
@@ -206,6 +216,8 @@ export default function AdminProducts() {
       categoryId: form.categoryId,
       status: normalizedStatus,
       isFeatured: form.isFeatured,
+      isTrending: form.isTrending,
+      isNewArrival: form.isNewArrival,
     };
 
     if (!editingId && form.initialStock.trim()) {
@@ -291,7 +303,8 @@ export default function AdminProducts() {
               Products
             </h2>
             <p className="text-muted-foreground text-sm">
-              {filtered.length} product{filtered.length !== 1 ? "s" : ""}
+              Showing {filtered.length} of {data?.total ?? filtered.length} product
+              {(data?.total ?? filtered.length) !== 1 ? "s" : ""}
             </p>
           </div>
           <button
@@ -587,18 +600,44 @@ export default function AdminProducts() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isFeatured}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, isFeatured: e.target.checked }))
-                  }
-                  className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  data-testid="checkbox-product-featured"
-                />
-                <span className="text-sm font-medium">Featured product</span>
-              </label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isFeatured}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, isFeatured: e.target.checked }))
+                    }
+                    className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    data-testid="checkbox-product-featured"
+                  />
+                  <span className="text-sm font-medium">Featured product</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isTrending}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, isTrending: e.target.checked }))
+                    }
+                    className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    data-testid="checkbox-product-trending"
+                  />
+                  <span className="text-sm font-medium">Trending product</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isNewArrival}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, isNewArrival: e.target.checked }))
+                    }
+                    className="w-4 h-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    data-testid="checkbox-product-new-arrival"
+                  />
+                  <span className="text-sm font-medium">New arrival</span>
+                </label>
+              </div>
 
               <div className="flex gap-3 pt-2">
                 <button
@@ -760,6 +799,30 @@ export default function AdminProducts() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {data && data.totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-sm text-muted-foreground">
+              Page {data.page} of {data.totalPages} ({data.total} products)
+            </p>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                disabled={page >= data.totalPages}
+                className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           </div>
         )}

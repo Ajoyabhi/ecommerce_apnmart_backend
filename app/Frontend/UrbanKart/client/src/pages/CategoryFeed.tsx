@@ -40,13 +40,13 @@ export default function CategoryFeed() {
     category: slug,
     status: "published",
   });
-  const { data: featuredData } = useProducts({
+  const { data: trendingData } = useProducts({
     category: slug,
-    featured: true,
+    trending: true,
     status: "published",
   });
   const products = productsData?.list ?? [];
-  const featuredProducts = featuredData?.list ?? [];
+  const trendingProducts = trendingData?.list ?? [];
 
   const subcategories = category?.children ?? [];
   const categoryName = category?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
@@ -139,7 +139,7 @@ export default function CategoryFeed() {
         </div>
       )}
 
-      {featuredProducts.length > 0 && (
+      {trendingProducts.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export default function CategoryFeed() {
               </div>
             </div>
             <Link
-              href={`/shop?category=${slug}&featured=true`}
+              href={`/shop?category=${slug}&trending=true`}
               className="text-sm font-semibold text-primary hover:underline flex items-center gap-1 hidden sm:flex"
               data-testid="link-view-all-trending"
             >
@@ -160,7 +160,7 @@ export default function CategoryFeed() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {featuredProducts.slice(0, 4).map((product) => (
+            {trendingProducts.slice(0, 4).map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

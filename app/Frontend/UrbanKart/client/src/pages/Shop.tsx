@@ -29,6 +29,8 @@ export default function Shop() {
     size: searchParams.get("size") || "",
     color: searchParams.get("color") || "",
     featured: searchParams.get("featured") === "true",
+    newArrivals: searchParams.get("new_arrivals") === "true",
+    trending: searchParams.get("trending") === "true",
     sort: searchParams.get("sort") || "newest",
     search: searchParams.get("search") || "",
   });
@@ -47,6 +49,8 @@ export default function Shop() {
       size: searchParams.get("size") || "",
       color: searchParams.get("color") || "",
       featured: searchParams.get("featured") === "true",
+      newArrivals: searchParams.get("new_arrivals") === "true",
+      trending: searchParams.get("trending") === "true",
       sort: searchParams.get("sort") || "newest",
       search: searchParams.get("search") || "",
     });
@@ -62,7 +66,9 @@ export default function Shop() {
     !filters.color &&
     !filters.price_min &&
     !filters.price_max &&
-    !filters.featured;
+    !filters.featured &&
+    !filters.trending &&
+    !filters.newArrivals;
 
   const useInfiniteScroll = !filters.search;
 
@@ -79,12 +85,29 @@ export default function Shop() {
             size: filters.size || undefined,
             color: filters.color || undefined,
             featured: filters.featured || undefined,
+            newArrivals: filters.newArrivals || undefined,
+            trending: filters.trending || undefined,
             sort: (searchParams.get("sort") || (isAllCategories ? "random" : "newest")) as "random" | "newest" | "price_low" | "price_high",
             seed: searchParams.get("seed") ? parseFloat(searchParams.get("seed")!) : 0.5,
             status: "published" as const,
           }
         : undefined,
-    [searchString, useInfiniteScroll, filters.category, filters.subcategory, filters.sub_subcategory, filters.brand, filters.price_min, filters.price_max, filters.size, filters.color, filters.featured, isAllCategories]
+    [
+      searchString,
+      useInfiniteScroll,
+      filters.category,
+      filters.subcategory,
+      filters.sub_subcategory,
+      filters.brand,
+      filters.price_min,
+      filters.price_max,
+      filters.size,
+      filters.color,
+      filters.featured,
+      filters.trending,
+      filters.newArrivals,
+      isAllCategories,
+    ]
   );
 
   const {
@@ -100,6 +123,8 @@ export default function Shop() {
     size: filters.size || undefined,
     color: filters.color || undefined,
     featured: filters.featured || undefined,
+    newArrivals: filters.newArrivals || undefined,
+    trending: filters.trending || undefined,
     sort: filters.sort || undefined,
     status: "published",
     search: filters.search || undefined,
@@ -316,6 +341,18 @@ export default function Shop() {
     activeFilters.push({
       label: "Featured",
       clear: () => updateFilter("featured", ""),
+    });
+  }
+  if (filters.trending) {
+    activeFilters.push({
+      label: "Trending",
+      clear: () => updateFilter("trending", ""),
+    });
+  }
+  if (filters.newArrivals) {
+    activeFilters.push({
+      label: "New Arrivals",
+      clear: () => updateFilter("new_arrivals", ""),
     });
   }
 

@@ -12,6 +12,8 @@ const productSchema = z.object({
     brand: z.string().optional().nullable(),
     status: z.enum(['draft', 'published', 'archived']).optional().default('draft'),
     isFeatured: z.boolean().optional().default(false),
+    isTrending: z.boolean().optional().default(false),
+    isNewArrival: z.boolean().optional().default(false),
     initialStock: z.number().int().nonnegative().optional().default(0),
     // Rich Content (Mongo)
     descriptionHtml: z.string().optional(),
@@ -45,7 +47,9 @@ exports.createProduct = async (req, res, next) => {
                 categoryId: validatedData.categoryId,
                 brand: validatedData.brand ?? undefined,
                 status: validatedData.status,
-                isFeatured: validatedData.isFeatured
+                isFeatured: validatedData.isFeatured,
+                isTrending: validatedData.isTrending,
+                isNewArrival: validatedData.isNewArrival
             }
         });
 
@@ -149,6 +153,8 @@ exports.updateProduct = async (req, res, next) => {
         if (validatedData.brand !== undefined) pgUpdateData.brand = validatedData.brand ?? undefined;
         if (validatedData.status !== undefined) pgUpdateData.status = validatedData.status;
         if (validatedData.isFeatured !== undefined) pgUpdateData.isFeatured = validatedData.isFeatured;
+        if (validatedData.isTrending !== undefined) pgUpdateData.isTrending = validatedData.isTrending;
+        if (validatedData.isNewArrival !== undefined) pgUpdateData.isNewArrival = validatedData.isNewArrival;
 
         const pgProduct = Object.keys(pgUpdateData).length
             ? await prisma.product.update({
@@ -212,6 +218,8 @@ exports.getProducts = async (req, res, next) => {
             page,
             limit,
             featured,
+            trending,
+            new_arrivals,
             status,
             q
         } = req.query;
@@ -220,6 +228,8 @@ exports.getProducts = async (req, res, next) => {
         if (status) where.status = status;
         else where.status = 'published';
         if (featured !== undefined && featured !== '') where.isFeatured = featured === 'true';
+        if (trending !== undefined && trending !== '') where.isTrending = trending === 'true';
+        if (new_arrivals !== undefined && new_arrivals !== '') where.isNewArrival = new_arrivals === 'true';
 
         // Site-wide text search: name, slug, SKU, brand (case-insensitive)
         const searchTerm = typeof q === 'string' ? q.trim() : '';
@@ -304,7 +314,8 @@ exports.getProducts = async (req, res, next) => {
         }
 
         const pageNum = Math.max(1, parseInt(page, 10) || 1);
-        const maxLimit = searchTerm ? 1000 : 100; // no constraint on search results page
+        // Allow higher limits (e.g. for admin product listing) while keeping a global safety cap
+        const maxLimit = 1000;
         const limitNum = Math.min(maxLimit, Math.max(1, parseInt(limit, 10) || (searchTerm ? 1000 : 24)));
         const skip = (pageNum - 1) * limitNum;
 

@@ -28,9 +28,23 @@ const FALLBACK_HERO = {
 
 export default function Home() {
   const { data: heroBanners = [] } = useHeroBanners();
-  const { data: featuredData, isLoading: loadingFeatured } =
-    useProducts({ featured: true, status: "published" });
+  const { data: featuredData, isLoading: loadingFeatured } = useProducts({
+    featured: true,
+    status: "published",
+  });
   const featuredProducts = featuredData?.list ?? [];
+
+  const { data: trendingData, isLoading: loadingTrending } = useProducts({
+    trending: true,
+    status: "published",
+  });
+  const trendingProducts = trendingData?.list ?? [];
+
+  const { data: newArrivalsData, isLoading: loadingNewArrivals } = useProducts({
+    newArrivals: true,
+    status: "published",
+  });
+  const newArrivalsProducts = newArrivalsData?.list ?? [];
 
   // Curated collections powered by seeded categories
   const { data: menFashionData } = useProducts({
@@ -99,7 +113,7 @@ export default function Home() {
   const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
 
   const featured = featuredProducts.slice(0, 4);
-  const newArrivals = featuredProducts.slice(0, 8);
+  const newArrivals = newArrivalsProducts.slice(0, 8);
 
   const slides = heroBanners.length > 0 ? heroBanners : [FALLBACK_HERO];
 
@@ -249,7 +263,7 @@ export default function Home() {
           </Link>
         </div>
 
-        {loadingFeatured ? (
+          {loadingNewArrivals ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
               <div
@@ -276,14 +290,14 @@ export default function Home() {
           <div className="flex items-center justify-between mb-10">
             <h2 className="font-display font-bold text-3xl">Trending Now</h2>
             <Link
-              href="/shop?featured=true"
+              href="/shop?trending=true"
               className="text-primary font-medium hover:underline flex items-center gap-1"
             >
               Explore All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          {loadingFeatured ? (
+          {loadingTrending ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[...Array(4)].map((_, i) => (
                 <div
@@ -292,9 +306,9 @@ export default function Home() {
                 />
               ))}
             </div>
-          ) : featured.length > 0 ? (
+          ) : trendingProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featured.map((product) => (
+              {trendingProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>

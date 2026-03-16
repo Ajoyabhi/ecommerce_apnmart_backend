@@ -86,6 +86,10 @@ export interface BackendProduct {
   brand?: string | null;
   status: string;
   isFeatured: boolean;
+  /** Whether product is marked as trending (separate from featured) */
+  isTrending?: boolean;
+  /** Whether product is marked as New Arrival (separate from featured/trending) */
+  isNewArrival?: boolean;
   createdAt?: string;
   updatedAt?: string;
   /** Optional aggregate review stats from backend */
@@ -153,6 +157,9 @@ export interface Product {
   ratingSummary?: ProductRatingSummary | null;
   stock: number;
   isFeatured: boolean;
+  isTrending?: boolean;
+  isNewArrival?: boolean;
+  isTrending?: boolean;
   variants?: BackendProductVariant[];
   richContent?: ProductRichContent | null;
 }
@@ -497,6 +504,8 @@ export interface ProductsQueryParams {
   size?: string;
   color?: string;
   featured?: boolean;
+  newArrivals?: boolean;
+  trending?: boolean;
   status?: string;
   sort?: string;
   page?: number;

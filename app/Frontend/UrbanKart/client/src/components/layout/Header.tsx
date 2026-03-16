@@ -10,8 +10,8 @@ import { cn, getMediaUrl, formatPrice } from "@/lib/utils";
 import type { MenuCategory } from "@/api/types";
 
 const STATIC_NAV_START = [
-  { label: "New Arrivals", href: "/shop?sort=newest", hasMega: false as const },
-  { label: "Trending", href: "/shop?featured=true", hasMega: false as const },
+  { label: "New Arrivals", href: "/shop?new_arrivals=true", hasMega: false as const },
+  { label: "Trending", href: "/shop?trending=true", hasMega: false as const },
 ];
 const STATIC_NAV_END = [
   { label: "Sale", href: "/shop?featured=true", hasMega: false as const },

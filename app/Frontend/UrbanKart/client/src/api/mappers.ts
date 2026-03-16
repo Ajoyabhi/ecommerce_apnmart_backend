@@ -77,6 +77,8 @@ export function mapBackendProductToProduct(p: BackendProduct): Product {
     stock,
     brand: p.brand ?? null,
     isFeatured: p.isFeatured ?? false,
+    isTrending: p.isTrending ?? false,
+    isNewArrival: p.isNewArrival ?? false,
     variants: p.variants,
     richContent: p.richContent ?? null,
   };

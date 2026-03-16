@@ -110,6 +110,10 @@ model Product {
   brand        String?          // optional brand slug/name for filtering
   status       String           @default("draft") // draft, published, archived
   isFeatured   Boolean          @default(false)
+  /// Mark product as trending for category pages / carousels
+  isTrending   Boolean          @default(false)
+  /// Mark product as part of New Arrivals section
+  isNewArrival Boolean          @default(false)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   variants     ProductVariant[]

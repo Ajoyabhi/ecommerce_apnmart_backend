@@ -8,6 +8,7 @@ import type {
   AdminOrdersQuery,
   UpdateOrderStatusPayload,
   UpdatePaymentStatusPayload,
+  ProductsQueryParams,
 } from "@/api/types";
 
 export function useAdminProducts() {
@@ -17,6 +18,45 @@ export function useAdminProducts() {
       const res = await fetchApi<BackendProduct[]>("/products?limit=200");
       if (!res.success || !res.data) return [];
       return res.data;
+    },
+  });
+}
+
+export interface AdminProductsPaginatedResponse {
+  products: BackendProduct[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function useAdminProductsPaginated(params: Pick<ProductsQueryParams, "page" | "limit">) {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 50;
+
+  const searchParams = new URLSearchParams();
+  searchParams.set("page", String(page));
+  searchParams.set("limit", String(limit));
+  const qs = searchParams.toString();
+
+  return useQuery({
+    queryKey: ["admin", "products", qs],
+    queryFn: async (): Promise<AdminProductsPaginatedResponse> => {
+      const res = await fetchApi<BackendProduct[]>(`/products?${qs}`);
+      const products = res.success && Array.isArray(res.data) ? res.data : [];
+      const total = typeof res.total === "number" ? res.total : products.length;
+      const effectiveLimit = typeof res.limit === "number" && res.limit > 0 ? res.limit : limit;
+      const effectivePage = typeof res.page === "number" && res.page > 0 ? res.page : page;
+      const totalPages =
+        effectiveLimit > 0 ? Math.max(1, Math.ceil(total / effectiveLimit)) : 1;
+
+      return {
+        products,
+        total,
+        page: effectivePage,
+        limit: effectiveLimit,
+        totalPages,
+      };
     },
   });
 }
