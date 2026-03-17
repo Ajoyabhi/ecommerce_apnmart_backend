@@ -16,7 +16,7 @@
  * Optional:
  *   REVIEW_SEED_BATCH           (default 500)  - number of products fetched per batch
  *   REVIEWS_PER_PRODUCT_MIN     (default 1)
- *   REVIEWS_PER_PRODUCT_MAX     (default 4)
+ *   REVIEWS_PER_PRODUCT_MAX     (default 100) - hard cap; distribution is biased to keep most products below 20 reviews
  */
 
 require('dotenv').config();
@@ -68,15 +68,79 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function randomRating() {
-  // Bias towards positive reviews
-  const weights = [1, 2, 3, 4, 5].map((r) => (r >= 4 ? 3 : r === 3 ? 2 : 1));
-  const total = weights.reduce((sum, w) => sum + w, 0);
-  let pick = Math.random() * total;
-  for (let i = 0; i < weights.length; i++) {
-    pick -= weights[i];
-    if (pick <= 0) return i + 1;
+/**
+ * Draw a review count in \[1, max\] such that:
+ * - Most products end up with <= 20 reviews
+ * - Some products reach into 20–50
+ * - A small tail reaches up to max (<= 100)
+ */
+function drawReviewCount(max) {
+  if (max <= 20) {
+    return randomInt(1, max);
   }
+
+  const cappedMax = Math.min(max, 100);
+  const u = Math.random();
+
+  if (u < 0.7) {
+    // ~70% of products get between 1–20 reviews
+    return randomInt(1, Math.min(20, cappedMax));
+  }
+
+  if (u < 0.9) {
+    // ~20% between 21–50 reviews (or up to cappedMax if smaller)
+    const start = Math.min(21, cappedMax);
+    const end = Math.min(50, cappedMax);
+    if (start > end) return randomInt(1, cappedMax);
+    return randomInt(start, end);
+  }
+
+  // ~10% in 51–max tail (if available)
+  const start = Math.min(51, cappedMax);
+  if (start > cappedMax) return randomInt(1, cappedMax);
+  return randomInt(start, cappedMax);
+}
+
+/**
+ * Generate a single star rating for a product, using the product's
+ * review count as a proxy for popularity:
+ * - Fewer reviews => higher average rating (around 4.8–4.9)
+ * - Many reviews  => slightly lower average (around 4.0-ish)
+ *
+ * This keeps roughly half of products above 4 on average, while
+ * correlating popularity with more balanced scores.
+ */
+function randomRatingForProduct(reviewCount) {
+  let weights;
+
+  if (reviewCount <= 10) {
+    // Very small sample: heavily positive
+    weights = [0.03, 0.04, 0.08, 0.30, 0.55]; // avg ~4.8
+  } else if (reviewCount <= 20) {
+    // Still small: strong positive skew
+    weights = [0.04, 0.06, 0.15, 0.35, 0.40]; // avg ~4.5
+  } else if (reviewCount <= 50) {
+    // Moderate: more balanced but still good
+    weights = [0.07, 0.10, 0.20, 0.35, 0.28]; // avg ~4.2
+  } else {
+    // Very popular: more realistic distribution
+    weights = [0.10, 0.15, 0.25, 0.30, 0.20]; // avg ~3.9–4.0
+  }
+
+  const cumulative = [];
+  let sum = 0;
+  for (let i = 0; i < weights.length; i++) {
+    sum += weights[i];
+    cumulative.push(sum);
+  }
+
+  const r = Math.random() * sum;
+  for (let i = 0; i < cumulative.length; i++) {
+    if (r <= cumulative[i]) {
+      return i + 1; // star values 1–5
+    }
+  }
+
   return 4;
 }
 
@@ -93,7 +157,7 @@ function buildAttributeRatings(overall) {
 async function main() {
   const batchSize = parseInt(process.env.REVIEW_SEED_BATCH || '500', 10);
   const minPerProduct = parseInt(process.env.REVIEWS_PER_PRODUCT_MIN || '1', 10);
-  const maxPerProduct = parseInt(process.env.REVIEWS_PER_PRODUCT_MAX || '4', 10);
+  const maxPerProduct = parseInt(process.env.REVIEWS_PER_PRODUCT_MAX || '100', 10);
 
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI is required to seed reviews.');
@@ -132,12 +196,14 @@ async function main() {
       const existingCount = await Review.countDocuments({ product_id: productId });
       if (existingCount > 0) continue;
 
-      const reviewCount = randomInt(minPerProduct, maxPerProduct);
+      // Draw a review count with a strong bias toward smaller numbers,
+      // while still allowing a long tail up to maxPerProduct.
+      const reviewCount = drawReviewCount(Math.max(minPerProduct, maxPerProduct));
       const docs = [];
 
       for (let i = 0; i < reviewCount; i++) {
         const userMeta = randomItem(SAMPLE_USERS);
-        const rating = randomRating();
+        const rating = randomRatingForProduct(reviewCount);
         const createdAt = new Date(
           Date.now() - randomInt(1, 60) * 24 * 60 * 60 * 1000
         ); // within last ~2 months
