@@ -65,11 +65,15 @@ export default function AdminProducts() {
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">(
     "all"
   );
+  const [search, setSearch] = useState("");
 
   const { data, isLoading } = useAdminProductsPaginated({
     page,
-    limit: pageSize,
-    status: statusFilter,
+    // When searching, ask backend for a larger page so search can run across the full pool
+    limit: search ? 1000 : pageSize,
+    // When searching, always search across all statuses, regardless of the status filter
+    status: search ? "all" : statusFilter,
+    search: search || undefined,
   });
   const products = data?.products ?? [];
   const { data: categories = [] } = useAdminCategories();
@@ -77,8 +81,6 @@ export default function AdminProducts() {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const { toast } = useToast();
-
-  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductFormData>(EMPTY_FORM);
@@ -106,11 +108,17 @@ export default function AdminProducts() {
     return out;
   })();
 
-  const filtered = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  // Still apply a lightweight client-side filter so typing feels instant,
+  // but the main search pool comes from the backend (via q=).
+  const filtered = products.filter((p) => {
+    if (!search) return true;
+    const term = search.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(term) ||
+      p.sku.toLowerCase().includes(term) ||
+      (p.brand ?? "").toLowerCase().includes(term)
+    );
+  });
 
   const selectedCategory = flatCategories.find((c) => c.id === form.categoryId);
   const categorySlug = selectedCategory?.slug ?? "";

@@ -31,11 +31,12 @@ export interface AdminProductsPaginatedResponse {
 }
 
 export function useAdminProductsPaginated(
-  params: Pick<ProductsQueryParams, "page" | "limit" | "status">
+  params: Pick<ProductsQueryParams, "page" | "limit" | "status" | "search">
 ) {
   const page = params.page ?? 1;
   const limit = params.limit ?? 50;
   const status = params.status ?? "all";
+  const search = params.search?.toString().trim() ?? "";
 
   const searchParams = new URLSearchParams();
   searchParams.set("page", String(page));
@@ -43,6 +44,10 @@ export function useAdminProductsPaginated(
   // Admin can request a specific status, or "all" to see everything
   if (status) {
     searchParams.set("status", status);
+  }
+  // Use backend's full-text query param so search runs on the server across all products
+  if (search) {
+    searchParams.set("q", search);
   }
   const qs = searchParams.toString();
 
