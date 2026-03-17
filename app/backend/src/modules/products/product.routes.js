@@ -10,5 +10,6 @@ router.get('/:slug', productController.getProductBySlug);
 // Admin Only Routes
 router.post('/', protect, authorize('ADMIN'), productController.createProduct);
 router.put('/:id', protect, authorize('ADMIN'), productController.updateProduct);
+router.delete('/:id', protect, authorize('ADMIN'), productController.deleteProduct);
 
 module.exports = router;

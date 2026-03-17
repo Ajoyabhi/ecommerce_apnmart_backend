@@ -568,3 +568,46 @@ exports.getProductBySlug = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.deleteProduct = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Delete relational data in a transaction (variants + inventory + product)
+        await prisma.$transaction(async (tx) => {
+            const variants = await tx.productVariant.findMany({
+                where: { productId: id },
+                select: { id: true }
+            });
+            const variantIds = variants.map((v) => v.id);
+
+            if (variantIds.length) {
+                await tx.inventory.deleteMany({
+                    where: { variantId: { in: variantIds } }
+                });
+                await tx.productVariant.deleteMany({
+                    where: { id: { in: variantIds } }
+                });
+            }
+
+            await tx.product.delete({
+                where: { id }
+            });
+        });
+
+        // Delete rich content + reviews + rating summaries in Mongo
+        await Promise.all([
+            ProductRichContent.deleteMany({ pg_id: id }),
+            Review.deleteMany({ product_id: String(id) }),
+            ProductRatingSummary.deleteMany({ product_id: String(id) })
+        ]);
+
+        res.status(200).json({ success: true, message: 'Product deleted' });
+    } catch (error) {
+        // Prisma "record not found"
+        if (error && error.code === 'P2025') {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+        next(error);
+    }
+};
