@@ -9,7 +9,9 @@ import {
   Home,
   LayoutGrid,
   LayoutList,
+  Star,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { useProducts, useProductsInfinite, useCategories } from "@/hooks/use-shop";
 import { ProductCard } from "@/components/product/ProductCard";
 import { cn, getMediaUrl } from "@/lib/utils";
@@ -33,6 +35,12 @@ export default function Shop() {
     trending: searchParams.get("trending") === "true",
     sort: searchParams.get("sort") || "newest",
     search: searchParams.get("search") || "",
+    rating: searchParams.get("rating") || "",
+  });
+
+  const [localPrice, setLocalPrice] = useState({
+    min: searchParams.get("price_min") || "",
+    max: searchParams.get("price_max") || "",
   });
 
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
@@ -53,50 +61,35 @@ export default function Shop() {
       trending: searchParams.get("trending") === "true",
       sort: searchParams.get("sort") || "newest",
       search: searchParams.get("search") || "",
+      rating: searchParams.get("rating") || "",
+    });
+    setLocalPrice({
+      min: searchParams.get("price_min") || "",
+      max: searchParams.get("price_max") || "",
     });
   }, [searchString]);
 
-  const isAllCategories =
-    !filters.category &&
-    !filters.subcategory &&
-    !filters.sub_subcategory &&
-    !filters.search &&
-    !filters.brand &&
-    !filters.size &&
-    !filters.color &&
-    !filters.price_min &&
-    !filters.price_max &&
-    !filters.featured &&
-    !filters.trending &&
-    !filters.newArrivals;
-
-  const useInfiniteScroll = isAllCategories && !filters.search;
-
-  const infiniteParams = useMemo(
-    () =>
-      useInfiniteScroll
-        ? {
-            category: filters.category || undefined,
-            subcategory: filters.subcategory || undefined,
-            sub_subcategory: filters.sub_subcategory || undefined,
-            brand: filters.brand || undefined,
-            price_min: filters.price_min ? Number(filters.price_min) : undefined,
-            price_max: filters.price_max ? Number(filters.price_max) : undefined,
-            size: filters.size || undefined,
-            color: filters.color || undefined,
-            featured: filters.featured || undefined,
-            newArrivals: filters.newArrivals || undefined,
-            trending: filters.trending || undefined,
-            // For the full /shop (all categories) view, default to newest products first.
-            // Other views respect whatever sort is selected.
-            sort: (searchParams.get("sort") || "newest") as "random" | "newest" | "price_low" | "price_high",
-            seed: searchParams.get("seed") ? parseFloat(searchParams.get("seed")!) : 0.5,
-            status: "published" as const,
-          }
-        : undefined,
+  const queryParams = useMemo(
+    () => ({
+      category: filters.category || undefined,
+      subcategory: filters.subcategory || undefined,
+      sub_subcategory: filters.sub_subcategory || undefined,
+      brand: filters.brand || undefined,
+      price_min: filters.price_min ? Number(filters.price_min) : undefined,
+      price_max: filters.price_max ? Number(filters.price_max) : undefined,
+      size: filters.size || undefined,
+      color: filters.color || undefined,
+      featured: filters.featured || undefined,
+      newArrivals: filters.newArrivals || undefined,
+      trending: filters.trending || undefined,
+      rating: filters.rating ? Number(filters.rating) : undefined,
+      sort: (searchParams.get("sort") || "newest") as "random" | "newest" | "price_low" | "price_high",
+      seed: searchParams.get("seed") ? parseFloat(searchParams.get("seed")!) : 0.5,
+      status: "published" as const,
+      search: filters.search || undefined,
+    }),
     [
       searchString,
-      useInfiniteScroll,
       filters.category,
       filters.subcategory,
       filters.sub_subcategory,
@@ -105,35 +98,15 @@ export default function Shop() {
       filters.price_max,
       filters.size,
       filters.color,
+      filters.rating,
       filters.featured,
       filters.trending,
       filters.newArrivals,
-      isAllCategories,
+      filters.search
     ]
   );
 
-  const {
-    data: productsData,
-    isLoading: loadingProducts,
-  } = useProducts({
-    category: filters.category || undefined,
-    subcategory: filters.subcategory || undefined,
-    sub_subcategory: filters.sub_subcategory || undefined,
-    brand: filters.brand || undefined,
-    price_min: filters.price_min ? Number(filters.price_min) : undefined,
-    price_max: filters.price_max ? Number(filters.price_max) : undefined,
-    size: filters.size || undefined,
-    color: filters.color || undefined,
-    featured: filters.featured || undefined,
-    newArrivals: filters.newArrivals || undefined,
-    trending: filters.trending || undefined,
-    sort: filters.sort || undefined,
-    status: "published",
-    search: filters.search || undefined,
-    limit: filters.search ? 1000 : undefined,
-  });
-
-  const infiniteQuery = useProductsInfinite(infiniteParams);
+  const infiniteQuery = useProductsInfinite(queryParams);
 
   const { data: categories = [] } = useCategories();
   const [, setLocation] = useLocation();
@@ -141,7 +114,7 @@ export default function Shop() {
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!useInfiniteScroll || !infiniteQuery.hasNextPage || infiniteQuery.isFetchingNextPage) return;
+    if (!infiniteQuery.hasNextPage || infiniteQuery.isFetchingNextPage) return;
     const el = scrollSentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
@@ -152,11 +125,11 @@ export default function Shop() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [useInfiniteScroll, infiniteQuery.hasNextPage, infiniteQuery.isFetchingNextPage, infiniteQuery.fetchNextPage]);
+  }, [infiniteQuery.hasNextPage, infiniteQuery.isFetchingNextPage, infiniteQuery.fetchNextPage]);
 
-  const products = useInfiniteScroll ? infiniteQuery.products : (productsData?.list ?? []);
-  const totalCount = useInfiniteScroll ? infiniteQuery.total : (productsData?.total ?? products.length);
-  const loadingProductsOrInfinite = loadingProducts || (useInfiniteScroll && infiniteQuery.isLoading);
+  const products = infiniteQuery.products;
+  const totalCount = infiniteQuery.total;
+  const loadingProductsOrInfinite = infiniteQuery.isLoading && products.length === 0;
 
   const sortedProducts = useMemo(() => {
     const list = [...(products ?? [])];
@@ -172,6 +145,17 @@ export default function Shop() {
     } else {
       newParams.delete(key);
     }
+    setLocation(`/shop?${newParams.toString()}`);
+  };
+
+  const applyPriceFilter = () => {
+    const newParams = new URLSearchParams(searchString);
+    if (localPrice.min) newParams.set("price_min", localPrice.min);
+    else newParams.delete("price_min");
+    
+    if (localPrice.max) newParams.set("price_max", localPrice.max);
+    else newParams.delete("price_max");
+    
     setLocation(`/shop?${newParams.toString()}`);
   };
 
@@ -254,7 +238,7 @@ export default function Shop() {
 
   useEffect(() => {
     if (filters.category && parentCategory) {
-      setExpandedCats((prev) => new Set([...prev, parentCategory.slug]));
+      setExpandedCats((prev) => new Set([...Array.from(prev), parentCategory.slug]));
     }
   }, [filters.category, parentCategory]);
 
@@ -355,6 +339,12 @@ export default function Shop() {
     activeFilters.push({
       label: "New Arrivals",
       clear: () => updateFilter("new_arrivals", ""),
+    });
+  }
+  if (filters.rating) {
+    activeFilters.push({
+      label: `${filters.rating} Stars & Up`,
+      clear: () => updateFilter("rating", ""),
     });
   }
 
@@ -601,6 +591,65 @@ export default function Shop() {
                   </span>
                 </label>
               </div>
+
+              <div className="pt-2 border-t border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm">Price Range</h3>
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    ₹{localPrice.min || "0"} - ₹{localPrice.max || "5000"}
+                  </span>
+                </div>
+                
+                <div className="px-2 pt-4 pb-2">
+                  <Slider 
+                    value={[Number(localPrice.min) || 0, Number(localPrice.max) || 5000]}
+                    max={5000} 
+                    min={0}
+                    step={100}
+                    onValueChange={(val) => {
+                      setLocalPrice({ min: String(val[0]), max: String(val[1]) });
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2 px-1 text-xs text-muted-foreground font-medium">
+                  <span>₹0</span>
+                  <span>₹5,000</span>
+                </div>
+
+                <button
+                  onClick={applyPriceFilter}
+                  className="w-full mt-4 py-2 bg-muted text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-sm font-medium rounded-lg"
+                >
+                  Apply Price
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <h3 className="font-semibold text-sm mb-3">Customer Rating</h3>
+                <div className="space-y-2">
+                  {[4, 3, 2, 1].map((rating) => (
+                    <label key={rating} className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="rating"
+                        checked={filters.rating === String(rating)}
+                        onChange={() => updateFilter("rating", String(rating))}
+                        className="w-4 h-4 text-primary focus:ring-primary border-gray-300"
+                      />
+                      <div className="flex items-center gap-0.5 text-yellow-400">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={cn("w-4 h-4", i < rating ? "fill-current" : "text-gray-300 fill-gray-300")}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-muted-foreground ml-1">& Up</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </aside>
 
@@ -654,7 +703,7 @@ export default function Shop() {
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
-                {useInfiniteScroll && infiniteQuery.hasNextPage && (
+                {infiniteQuery.hasNextPage && (
                   <div ref={scrollSentinelRef} className="h-10 flex items-center justify-center py-8">
                     {infiniteQuery.isFetchingNextPage && (
                       <div className="animate-pulse text-sm text-muted-foreground">Loading more...</div>

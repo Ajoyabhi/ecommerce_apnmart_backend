@@ -159,7 +159,6 @@ export interface Product {
   isFeatured: boolean;
   isTrending?: boolean;
   isNewArrival?: boolean;
-  isTrending?: boolean;
   variants?: BackendProductVariant[];
   richContent?: ProductRichContent | null;
 }
@@ -506,6 +505,7 @@ export interface ProductsQueryParams {
   featured?: boolean;
   newArrivals?: boolean;
   trending?: boolean;
+  rating?: number;
   status?: string;
   sort?: string;
   page?: number;

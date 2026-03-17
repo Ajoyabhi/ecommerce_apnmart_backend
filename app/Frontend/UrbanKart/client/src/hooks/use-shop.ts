@@ -32,6 +32,7 @@ export function useProducts(params?: ProductsQueryParams) {
       if (params?.featured !== undefined) search.set("featured", String(params.featured));
       if (params?.trending !== undefined) search.set("trending", String(params.trending));
       if (params?.newArrivals !== undefined) search.set("new_arrivals", String(params.newArrivals));
+      if (params?.rating !== undefined) search.set("rating", String(params.rating));
       if (params?.status) search.set("status", params.status);
       if (params?.sort) search.set("sort", params.sort);
       if (params?.page !== undefined) search.set("page", String(params.page));
@@ -67,6 +68,7 @@ export function useProductsInfinite(params?: ProductsQueryParams) {
       if (params?.featured !== undefined) search.set("featured", String(params.featured));
       if (params?.trending !== undefined) search.set("trending", String(params.trending));
       if (params?.newArrivals !== undefined) search.set("new_arrivals", String(params.newArrivals));
+      if (params?.rating !== undefined) search.set("rating", String(params.rating));
       if (params?.status) search.set("status", params.status);
       if (params?.sort) search.set("sort", params.sort);
       if (params?.seed !== undefined) search.set("seed", String(params.seed));
