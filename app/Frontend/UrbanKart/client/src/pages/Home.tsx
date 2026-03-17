@@ -473,6 +473,38 @@ export default function Home() {
           )}
         </div>
 
+        {/* Home decor */}
+        <div>
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <h2 className="font-display font-bold text-3xl">
+                Home Decor
+              </h2>
+              <p className="text-muted-foreground mt-2">
+                Candles, lights, vases, florals and decorative pebbles for cosy corners.
+              </p>
+            </div>
+            <Link
+              href="/shop?category=home-decor"
+              className="text-primary font-medium hover:underline flex items-center gap-1"
+            >
+              Shop Home Decor <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {homeDecor.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {homeDecor.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground">
+              Home decor products will appear here once seeded.
+            </div>
+          )}
+        </div>
+
         {/* Boys & Girls fashion */}
         <div>
           <div className="flex items-end justify-between mb-8">
@@ -578,7 +610,7 @@ export default function Home() {
         </div>
 
         {/* Home decor */}
-        <div>
+        {/* <div>
           <div className="flex items-end justify-between mb-8">
             <div>
               <h2 className="font-display font-bold text-3xl">
@@ -607,7 +639,7 @@ export default function Home() {
               Home decor products will appear here once seeded.
             </div>
           )}
-        </div>
+        </div> */}
       </section>
     </div>
   );

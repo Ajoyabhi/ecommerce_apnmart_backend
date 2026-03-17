@@ -70,7 +70,7 @@ export default function Shop() {
     !filters.trending &&
     !filters.newArrivals;
 
-  const useInfiniteScroll = !filters.search;
+  const useInfiniteScroll = isAllCategories && !filters.search;
 
   const infiniteParams = useMemo(
     () =>
@@ -87,7 +87,9 @@ export default function Shop() {
             featured: filters.featured || undefined,
             newArrivals: filters.newArrivals || undefined,
             trending: filters.trending || undefined,
-            sort: (searchParams.get("sort") || (isAllCategories ? "random" : "newest")) as "random" | "newest" | "price_low" | "price_high",
+            // For the full /shop (all categories) view, default to newest products first.
+            // Other views respect whatever sort is selected.
+            sort: (searchParams.get("sort") || "newest") as "random" | "newest" | "price_low" | "price_high",
             seed: searchParams.get("seed") ? parseFloat(searchParams.get("seed")!) : 0.5,
             status: "published" as const,
           }
@@ -416,12 +418,12 @@ export default function Shop() {
 
             <div className="relative">
               <select
-                value={isAllCategories ? (filters.sort || "random") : filters.sort}
+                value={filters.sort}
                 onChange={(e) => updateFilter("sort", e.target.value)}
                 className="appearance-none bg-card border border-border pl-4 pr-10 py-2.5 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:outline-none cursor-pointer shadow-sm"
                 data-testid="select-sort"
               >
-                {isAllCategories && <option value="random">Random</option>}
+                <option value="random">Random</option>
                 <option value="newest">Newest</option>
                 <option value="price_low">Price: Low to High</option>
                 <option value="price_high">Price: High to Low</option>
@@ -482,7 +484,8 @@ export default function Shop() {
                 <div className="space-y-0.5">
                   <button
                     onClick={() => {
-                      setLocation(`/shop?sort=random&seed=${Math.random()}`);
+                      // Reset to all products and show latest-added items first.
+                      setLocation(`/shop?sort=newest`);
                     }}
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
