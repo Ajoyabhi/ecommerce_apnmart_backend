@@ -30,13 +30,20 @@ export interface AdminProductsPaginatedResponse {
   totalPages: number;
 }
 
-export function useAdminProductsPaginated(params: Pick<ProductsQueryParams, "page" | "limit">) {
+export function useAdminProductsPaginated(
+  params: Pick<ProductsQueryParams, "page" | "limit" | "status">
+) {
   const page = params.page ?? 1;
   const limit = params.limit ?? 50;
+  const status = params.status ?? "all";
 
   const searchParams = new URLSearchParams();
   searchParams.set("page", String(page));
   searchParams.set("limit", String(limit));
+  // Admin can request a specific status, or "all" to see everything
+  if (status) {
+    searchParams.set("status", status);
+  }
   const qs = searchParams.toString();
 
   return useQuery({

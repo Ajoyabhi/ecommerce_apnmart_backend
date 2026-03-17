@@ -62,8 +62,15 @@ const EMPTY_FORM: ProductFormData = {
 export default function AdminProducts() {
   const [page, setPage] = useState(1);
   const pageSize = 50;
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">(
+    "all"
+  );
 
-  const { data, isLoading } = useAdminProductsPaginated({ page, limit: pageSize });
+  const { data, isLoading } = useAdminProductsPaginated({
+    page,
+    limit: pageSize,
+    status: statusFilter,
+  });
   const products = data?.products ?? [];
   const { data: categories = [] } = useAdminCategories();
   const deleteProduct = useDeleteProduct();
@@ -304,28 +311,55 @@ export default function AdminProducts() {
             </h2>
             <p className="text-muted-foreground text-sm">
               Showing {filtered.length} of {data?.total ?? filtered.length} product
-              {(data?.total ?? filtered.length) !== 1 ? "s" : ""}
+              {(data?.total ?? filtered.length) !== 1 ? "s" : ""} (
+              {statusFilter === "all" ? "all statuses" : `${statusFilter} only`})
             </p>
           </div>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm transition-colors"
-            data-testid="button-create-product"
-          >
-            <Plus className="w-4 h-4" /> Add Product
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as "all" | "draft" | "published" | "archived")
+                }
+                className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                data-testid="select-product-status-filter"
+              >
+                <option value="all">All</option>
+                <option value="draft">Draft only</option>
+                <option value="published">Published only</option>
+                <option value="archived">Archived only</option>
+              </select>
+            </div>
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm transition-colors"
+              data-testid="button-create-product"
+            >
+              <Plus className="w-4 h-4" /> Add Product
+            </button>
+          </div>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by name or SKU..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
-            data-testid="input-search-products"
-          />
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div className="relative max-w-sm w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={
+                statusFilter === "draft"
+                  ? "Search within draft products..."
+                  : "Search by name or SKU..."
+              }
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none"
+              data-testid="input-search-products"
+            />
+          </div>
         </div>
 
         {showForm && (

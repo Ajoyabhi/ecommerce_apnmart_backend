@@ -225,8 +225,14 @@ exports.getProducts = async (req, res, next) => {
         } = req.query;
 
         const where = {};
-        if (status) where.status = status;
-        else where.status = 'published';
+        if (status === 'all') {
+            // No status filter – used by admin to see all products
+        } else if (status) {
+            where.status = status;
+        } else {
+            // Default storefront behavior: only show published products
+            where.status = 'published';
+        }
         if (featured !== undefined && featured !== '') where.isFeatured = featured === 'true';
         if (trending !== undefined && trending !== '') where.isTrending = trending === 'true';
         if (new_arrivals !== undefined && new_arrivals !== '') where.isNewArrival = new_arrivals === 'true';
