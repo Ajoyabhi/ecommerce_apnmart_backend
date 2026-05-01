@@ -40,6 +40,7 @@ import CookiePolicy from "@/pages/CookiePolicy";
 import ReturnsExchanges from "@/pages/ReturnsExchanges";
 import CustomerService from "@/pages/CustomerService";
 import Faqs from "@/pages/Faqs";
+import RefundCancellationPolicy from "@/pages/RefundCancellationPolicy";
 
 function ProtectedUser({ component: Component }: { component: () => JSX.Element }) {
   return (
@@ -95,6 +96,7 @@ function StorefrontRouter() {
           <Route path="/returns-exchanges" component={ReturnsExchanges} />
           <Route path="/customer-service" component={CustomerService} />
           <Route path="/faqs" component={Faqs} />
+          <Route path="/refund-cancellation-policy" component={RefundCancellationPolicy} />
           <Route component={NotFound} />
         </Switch>
       </main>

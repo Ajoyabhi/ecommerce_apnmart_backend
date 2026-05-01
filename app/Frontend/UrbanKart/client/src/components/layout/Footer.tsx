@@ -69,12 +69,17 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/returns-exchanges" className="hover:text-primary transition-colors">
-                  Returns &amp; Exchanges
+                  Return Policy
                 </Link>
               </li>
               <li>
                 <Link href="/shipping-policy" className="hover:text-primary transition-colors">
-                  Shipping Info
+                  Shipping Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/refund-cancellation-policy" className="hover:text-primary transition-colors">
+                  Refund and Cancellation Policy
                 </Link>
               </li>
               <li>
