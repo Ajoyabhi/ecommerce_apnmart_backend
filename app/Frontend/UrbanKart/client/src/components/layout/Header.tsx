@@ -66,21 +66,21 @@ export function Header() {
   }, []);
 
   const navItems: NavItem[] = useMemo(() => {
-    const fromApi = menuCategories.map((c) => {
-      const hasSubs = !!(c.subcategories && c.subcategories.length > 0);
-      return {
-        label: c.name,
-        href: `/category/${c.slug}`,
-        slug: c.slug,
-        hasMega: hasSubs,
-      };
-    });
+    const fromApi = menuCategories
+      .filter((c) => c.slug !== "electronics")
+      .map((c) => {
+        const hasSubs = !!(c.subcategories && c.subcategories.length > 0);
+        return {
+          label: c.name,
+          href: `/category/${c.slug}`,
+          slug: c.slug,
+          hasMega: hasSubs,
+        };
+      });
     return [...STATIC_NAV_START, ...fromApi, ...STATIC_NAV_END];
   }, [menuCategories]);
 
-  const isElectronicsNavItem = (item: NavItem) => item.slug === "electronics";
-
-const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: string | null) => false;
+  const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: string | null) => false;
 
   const findMenuCategory = useCallback(
     (slug: string): MenuCategory | null => {
@@ -318,44 +318,30 @@ const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: str
         <div className="border-t border-border/50 bg-background/50 hidden md:block">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-              {navItems.map((item) => {
-                const isElectronics = isElectronicsNavItem(item);
-                return (
-                  <div
-                    key={item.label}
-                    className="relative"
-                    onMouseEnter={() => item.hasMega && item.slug && !isElectronics && handleMegaEnter(item.slug)}
-                    onMouseLeave={() => item.hasMega && !isElectronics && handleMegaLeave()}
-                  >
-                    {isElectronics ? (
-                      <span
-                        className={cn(
-                          "flex items-center gap-1 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 text-muted-foreground cursor-default select-none"
-                        )}
-                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-                      >
-                        {item.label}
-                      </span>
-                    ) : (
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-1 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
-                          activeMega === item.slug
-                            ? "text-primary border-primary"
-                            : "text-muted-foreground border-transparent hover:text-primary hover:border-primary"
-                        )}
-                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-                      >
-                        {item.label}
-                        {item.hasMega && (
-                          <ChevronDown className={cn("w-3 h-3 transition-transform", activeMega === item.slug && "rotate-180")} />
-                        )}
-                      </Link>
+              {navItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="relative"
+                  onMouseEnter={() => item.hasMega && item.slug && handleMegaEnter(item.slug)}
+                  onMouseLeave={() => item.hasMega && handleMegaLeave()}
+                >
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-1 px-3 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
+                      activeMega === item.slug
+                        ? "text-primary border-primary"
+                        : "text-muted-foreground border-transparent hover:text-primary hover:border-primary"
                     )}
-                  </div>
-                );
-              })}
+                    data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  >
+                    {item.label}
+                    {item.hasMega && (
+                      <ChevronDown className={cn("w-3 h-3 transition-transform", activeMega === item.slug && "rotate-180")} />
+                    )}
+                  </Link>
+                </div>
+              ))}
             </nav>
 
             {activeMega && megaCategory && megaCategory.subcategories && megaCategory.subcategories.length > 0 && (
@@ -447,7 +433,6 @@ const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: str
             </div>
             <nav className="py-2">
               {navItems.map((item) => {
-                const isElectronics = isElectronicsNavItem(item);
                 const cat = item.slug ? findMenuCategory(item.slug) : null;
                 const hasSubs = cat?.subcategories && cat.subcategories.length > 0;
                 const isExpanded = item.slug ? mobileExpanded.has(item.slug) : false;
@@ -455,20 +440,14 @@ const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: str
                 return (
                   <div key={item.label}>
                     <div className="flex items-center">
-                      {isElectronics ? (
-                        <span className="flex-1 px-5 py-3 text-sm font-medium text-muted-foreground cursor-default select-none">
-                          {item.label}
-                        </span>
-                      ) : (
-                        <Link
-                          href={item.href}
-                          className="flex-1 px-5 py-3 text-sm font-medium text-foreground hover:bg-muted"
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          {item.label}
-                        </Link>
-                      )}
-                      {item.hasMega && hasSubs && !isElectronics && (
+                      <Link
+                        href={item.href}
+                        className="flex-1 px-5 py-3 text-sm font-medium text-foreground hover:bg-muted"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                      {item.hasMega && hasSubs && (
                         <button
                           onClick={() => toggleMobileExpand(item.slug!)}
                           className="px-4 py-3 text-muted-foreground hover:bg-muted"
@@ -477,7 +456,7 @@ const isComingSoonHomeSubcategory = (_parentSlug?: string | null, _subSlug?: str
                         </button>
                       )}
                     </div>
-                    {item.hasMega && isExpanded && cat?.subcategories && !isElectronics && (
+                    {item.hasMega && isExpanded && cat?.subcategories && (
                       <div className="bg-muted/50 py-1">
                         {cat.subcategories.map((sub) => {
                           const isComingSoon = isComingSoonHomeSubcategory(cat.slug, sub.slug);
