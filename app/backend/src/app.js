@@ -42,7 +42,14 @@ app.use(
         crossOriginResourcePolicy: { policy: 'cross-origin' }
     })
 );
-app.use(cors(corsOptions)); // Enable CORS with allowed origins
+
+// Single CORS middleware — open policy for HDFC return URL, strict for everything else
+app.use((req, res, next) => {
+    if (req.path === '/api/v1/payments/hdfc/return') {
+        return cors({ origin: true, credentials: false })(req, res, next);
+    }
+    return cors(corsOptions)(req, res, next);
+});
 app.use(express.json()); // Body parser
 app.use(express.urlencoded({ extended: true }));
 

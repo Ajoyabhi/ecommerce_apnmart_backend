@@ -170,6 +170,7 @@ model Order {
   updatedAt             DateTime    @updatedAt
   deliveredAt           DateTime?
   items                 OrderItem[]
+  hdfcPayment           HdfcPayment?
 }
 
 model OrderItem {
@@ -242,6 +243,20 @@ model EmailLog {
   status     String   // sent | failed
   error      String?  @db.Text
   createdAt  DateTime @default(now())
+}
+
+model HdfcPayment {
+  id           String   @id @default(uuid())
+  orderId      String   @unique
+  order        Order    @relation(fields: [orderId], references: [id])
+  hdfcOrderId  String   @unique
+  txnId        String?
+  txnUuid      String?
+  status       String   @default("PENDING")
+  upiIntentUri String?  @db.Text
+  sdkParams    Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model CodOtp {

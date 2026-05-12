@@ -469,6 +469,15 @@ export interface PlaceOrderResponse {
   orderNumber: string;
   status: string;
   total: number;
+  // UPI intent (HDFC TranPortal)
+  upiRequired?: boolean;
+  upiIntentUri?: string | null;
+  hdfcOrderId?: string;
+  // Card / Net Banking (HDFC Hypercheckout redirect)
+  redirectRequired?: boolean;
+  redirectUrl?: string | null;
+  // Shared error
+  hdfcError?: string;
 }
 
 export interface PostalPinCodeResponse {

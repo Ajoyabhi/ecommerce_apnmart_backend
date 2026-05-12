@@ -25,6 +25,7 @@ import AdminOrders from "@/pages/admin/Orders";
 import SignIn from "@/pages/SignIn";
 import AuthCallback from "@/pages/AuthCallback";
 import Checkout from "@/pages/Checkout";
+import PaymentCallback from "@/pages/PaymentCallback";
 import AccountOverview from "@/pages/account/Overview";
 import AccountProfile from "@/pages/account/Profile";
 import AccountOrders from "@/pages/account/Orders";
@@ -64,6 +65,9 @@ function StorefrontRouter() {
           <Route path="/auth/callback" component={AuthCallback} />
           <Route path="/checkout">
             {() => <ProtectedUser component={Checkout} />}
+          </Route>
+          <Route path="/payment/hdfc/callback">
+            {() => <ProtectedUser component={PaymentCallback} />}
           </Route>
           <Route path="/account">
             {() => <ProtectedUser component={AccountOverview} />}

@@ -5,6 +5,7 @@ import { useAuth } from "@/store/use-auth";
 import { fetchApi } from "@/api/client";
 import { formatPrice, getMediaUrl } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeSVG } from "qrcode.react";
 import type {
   CheckoutAddress,
   PlaceOrderPayload,
@@ -360,6 +361,16 @@ export default function Checkout() {
   const [codOtpSending, setCodOtpSending] = useState(false);
   const [codOtpResendAt, setCodOtpResendAt] = useState<number>(0);
 
+  // UPI payment pending state
+  const [upiPending, setUpiPending] = useState<{
+    orderId: string;
+    orderNumber: string;
+    total: number;
+    upiIntentUri: string;
+  } | null>(null);
+  const [upiPolling, setUpiPolling] = useState(false);
+  const upiPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (user) {
       setShippingAddress((prev) => ({
@@ -376,6 +387,41 @@ export default function Checkout() {
       setCodOtpValue("");
     }
   }, [paymentMethod]);
+
+  // Poll HDFC payment status while UPI screen is open
+  useEffect(() => {
+    if (!upiPending) {
+      if (upiPollRef.current) clearInterval(upiPollRef.current);
+      return;
+    }
+
+    setUpiPolling(true);
+    upiPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetchApi<{ paid: boolean; status: string }>(
+          `payments/hdfc/status/${upiPending.orderId}`
+        );
+        if (res.success && res.data?.paid) {
+          clearInterval(upiPollRef.current!);
+          setUpiPending(null);
+          setUpiPolling(false);
+          clearCart();
+          setOrderSuccess({
+            orderId: upiPending.orderId,
+            orderNumber: upiPending.orderNumber,
+            status: "PROCESSING",
+            total: upiPending.total,
+          });
+        }
+      } catch {
+        // silent — keep polling
+      }
+    }, 6000);
+
+    return () => {
+      if (upiPollRef.current) clearInterval(upiPollRef.current);
+    };
+  }, [upiPending]);
 
   const handleRequestCodOtp = async () => {
     setCodOtpSending(true);
@@ -433,6 +479,72 @@ export default function Checkout() {
             <Button variant="outline" data-testid="button-continue-shopping-success">Continue Shopping</Button>
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  // UPI payment pending screen
+  if (upiPending) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-12 text-center space-y-6">
+        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+        </div>
+
+        <div>
+          <h1 className="text-2xl font-display font-bold mb-1">Complete UPI Payment</h1>
+          <p className="text-muted-foreground text-sm">
+            Order #{upiPending.orderNumber} · {formatPrice(upiPending.total)}
+          </p>
+        </div>
+
+        {/* QR code — always shown, works on any device */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Scan with any UPI app</p>
+          <p className="text-xs text-muted-foreground">Google Pay · PhonePe · Paytm · BHIM</p>
+          <div className="flex justify-center mt-2">
+            <div className="p-5 bg-white rounded-2xl shadow-md border border-border inline-block">
+              <QRCodeSVG
+                value={upiPending.upiIntentUri}
+                size={220}
+                bgColor="#ffffff"
+                fgColor="#000000"
+                level="M"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Deep link button — works on mobile to open UPI app directly */}
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">On mobile? Open your UPI app directly</p>
+          <a
+            href={upiPending.upiIntentUri}
+            className="inline-flex items-center justify-center w-full py-3 px-6 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+          >
+            Open UPI App
+          </a>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span>Waiting for payment confirmation...</span>
+        </div>
+
+        <button
+          onClick={() => {
+            if (upiPollRef.current) clearInterval(upiPollRef.current);
+            setUpiPending(null);
+            toast({
+              title: "Payment cancelled",
+              description: "Your order is saved. Complete payment from My Orders.",
+              variant: "destructive",
+            });
+          }}
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Cancel and go back
+        </button>
       </div>
     );
   }
@@ -508,9 +620,37 @@ export default function Checkout() {
       });
 
       if (res.success && res.data) {
-        setOrderSuccess(res.data);
-        clearCart();
-        toast({ title: "Order placed!", description: `Order #${res.data.orderNumber} confirmed.` });
+        if (res.data.upiRequired) {
+          if (res.data.upiIntentUri) {
+            setUpiPending({
+              orderId: res.data.orderId,
+              orderNumber: res.data.orderNumber,
+              total: res.data.total,
+              upiIntentUri: res.data.upiIntentUri,
+            });
+          } else {
+            toast({
+              title: "Payment gateway error",
+              description: res.data.hdfcError || "Could not reach payment gateway. Try again from your orders.",
+              variant: "destructive",
+            });
+          }
+        } else if (res.data.redirectRequired) {
+          if (res.data.redirectUrl) {
+            clearCart();
+            window.location.href = res.data.redirectUrl;
+          } else {
+            toast({
+              title: "Payment gateway error",
+              description: res.data.hdfcError || "Could not reach payment gateway. Try again from your orders.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          setOrderSuccess(res.data);
+          clearCart();
+          toast({ title: "Order placed!", description: `Order #${res.data.orderNumber} confirmed.` });
+        }
       } else {
         toast({ title: "Order failed", description: res.message || "Something went wrong.", variant: "destructive" });
       }

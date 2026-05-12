@@ -33,6 +33,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    historyApiFallback: true,
     fs: {
       strict: true,
       deny: ["**/.*"],
