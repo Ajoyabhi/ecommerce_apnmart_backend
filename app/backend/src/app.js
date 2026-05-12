@@ -7,6 +7,9 @@ const logger = require('./utils/logger');
 
 const app = express();
 
+// Trust Nginx reverse proxy — required for express-rate-limit and correct IP detection
+app.set('trust proxy', 1);
+
 // Serve ecommerce icon set as static assets so frontend can use them
 app.use(
     '/static/ecommerce-icons',

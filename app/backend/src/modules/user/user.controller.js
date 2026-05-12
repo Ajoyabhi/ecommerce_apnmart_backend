@@ -4,6 +4,7 @@ const { ProductRichContent } = require('../../models');
 const { z } = require('zod');
 const { verifyCodOtp, createAndSendCodOtp } = require('../../services/codOtp.service');
 const { onOrderPlaced } = require('../../services/orderEmail.service');
+const { createHdfcOrder, initiateUpiIntent, buildUpiIntentUri } = require('../payments/hdfc.service');
 
 // Helpers
 function decimalToNumber(d) {
@@ -593,6 +594,144 @@ exports.checkout = async (req, res, next) => {
 
       return newOrder;
     });
+
+    // UPI via HDFC — initiate payment intent before returning
+    if (paymentMethod === 'upi') {
+      try {
+        const hdfcOrderId = `H${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.slice(0, 21).toUpperCase();
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true, phone: true },
+        });
+
+        const rawPhone = user.phone || shippingAddress.phone || '';
+        const customerPhone = rawPhone.replace(/\D/g, '').slice(-10); // strip +91, keep last 10 digits
+
+        await createHdfcOrder({
+          hdfcOrderId,
+          amount: total,
+          customerId: userId,
+          customerEmail: user.email,
+          customerPhone,
+          returnUrl: `${process.env.CUSTOMER_FRONTEND_URL}/payment/hdfc/callback?orderId=${order.id}`,
+        });
+
+        const txnResponse = await initiateUpiIntent({ hdfcOrderId, customerId: userId });
+        const logger = require('../../utils/logger');
+        logger.info({ txnResponse }, '[HDFC] raw txnResponse from initiateUpiIntent');
+
+        const sdkParams = txnResponse.sdk_params || txnResponse.payment?.sdk_params || {};
+        logger.info({ sdkParams }, '[HDFC] extracted sdkParams');
+
+        const upiIntentUri = buildUpiIntentUri(sdkParams);
+        logger.info({ upiIntentUri }, '[HDFC] built upiIntentUri');
+
+        await prisma.hdfcPayment.create({
+          data: {
+            orderId: order.id,
+            hdfcOrderId,
+            txnId: txnResponse.txn_id || null,
+            txnUuid: txnResponse.txn_uuid || null,
+            status: txnResponse.status || 'PENDING',
+            upiIntentUri,
+            sdkParams,
+          },
+        });
+
+        return res.status(201).json({
+          success: true,
+          data: {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            total: decimalToNumber(order.total),
+            upiRequired: true,
+            upiIntentUri,
+            hdfcOrderId,
+          },
+        });
+      } catch (hdfcErr) {
+        // HDFC call failed — order exists but payment not initiated, let FE know
+        const logger = require('../../utils/logger');
+        logger.error(`HDFC UPI init failed for order ${order.id}: ${hdfcErr.message}`);
+        return res.status(201).json({
+          success: true,
+          data: {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            total: decimalToNumber(order.total),
+            upiRequired: true,
+            upiIntentUri: null,
+            hdfcError: 'Could not connect to payment gateway. Please retry from your orders page.',
+          },
+        });
+      }
+    }
+
+    // Card / Net Banking via HDFC Hypercheckout — redirect to hosted payment page
+    if (['card', 'netbanking'].includes(paymentMethod)) {
+      try {
+        const hdfcOrderId = `H${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.slice(0, 21).toUpperCase();
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true, phone: true },
+        });
+
+        const rawPhone = user.phone || shippingAddress.phone || '';
+        const customerPhone = rawPhone.replace(/\D/g, '').slice(-10);
+
+        const hdfcOrderData = await createHdfcOrder({
+          hdfcOrderId,
+          amount: total,
+          customerId: userId,
+          customerEmail: user.email,
+          customerPhone,
+          returnUrl: `${process.env.API_BASE_URL || 'http://localhost:5009'}/api/v1/payments/hdfc/return`,
+        });
+
+        const redirectUrl = hdfcOrderData.payment_links?.web;
+
+        await prisma.hdfcPayment.create({
+          data: {
+            orderId: order.id,
+            hdfcOrderId,
+            status: 'PENDING',
+            sdkParams: { payment_links: hdfcOrderData.payment_links },
+          },
+        });
+
+        const logger = require('../../utils/logger');
+        logger.info({ hdfcOrderId, redirectUrl }, `[HDFC] ${paymentMethod} Hypercheckout redirect`);
+
+        return res.status(201).json({
+          success: true,
+          data: {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            total: decimalToNumber(order.total),
+            redirectRequired: true,
+            redirectUrl,
+          },
+        });
+      } catch (hdfcErr) {
+        const logger = require('../../utils/logger');
+        logger.error(`HDFC ${paymentMethod} init failed for order ${order.id}: ${hdfcErr.message}`);
+        return res.status(201).json({
+          success: true,
+          data: {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            total: decimalToNumber(order.total),
+            redirectRequired: true,
+            redirectUrl: null,
+            hdfcError: 'Could not connect to payment gateway. Please retry from your orders page.',
+          },
+        });
+      }
+    }
 
     // Non-blocking: send order confirmation to user + admin emails
     const orderWithUserAndItems = await prisma.order.findUnique({
