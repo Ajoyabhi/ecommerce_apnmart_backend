@@ -59,6 +59,19 @@ function mapOrderItemToDto(item) {
 }
 
 function mapOrderToDto(order) {
+  // Build payment gateway info from hdfcPayment relation (if included)
+  const hdfc = order.hdfcPayment ?? null;
+  const paymentGateway = hdfc
+    ? {
+        provider: 'HDFC SmartGateway',
+        hdfcOrderId: hdfc.hdfcOrderId,
+        txnId: hdfc.txnId ?? null,
+        txnUuid: hdfc.txnUuid ?? null,
+        gatewayStatus: hdfc.status,
+        paidAt: hdfc.updatedAt?.toISOString?.() ?? null,
+      }
+    : null;
+
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -69,6 +82,7 @@ function mapOrderToDto(order) {
     tax: decimalToNumber(order.taxAmount),
     paymentMethod: order.paymentMethod ?? (order.paymentIntentId ? 'card' : null),
     paymentStatus: order.paymentStatus ?? 'unpaid',
+    paymentGateway,                   // null for COD, populated for HDFC payments
     shippingAddress: order.shippingAddress && typeof order.shippingAddress === 'object'
       ? order.shippingAddress
       : null,
@@ -255,6 +269,7 @@ exports.getOrders = async (req, res, next) => {
               variant: true,
             },
           },
+          hdfcPayment: true,
         },
       }),
       prisma.order.count({ where: { userId } }),
@@ -287,6 +302,7 @@ exports.getOrderById = async (req, res, next) => {
             variant: true,
           },
         },
+        hdfcPayment: true,
       },
     });
 

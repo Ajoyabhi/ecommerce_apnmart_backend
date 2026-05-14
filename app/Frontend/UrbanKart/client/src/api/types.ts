@@ -290,6 +290,15 @@ export interface OrderItem {
   size?: string | null;
 }
 
+export interface PaymentGatewayInfo {
+  provider: string;           // e.g. "HDFC SmartGateway"
+  hdfcOrderId: string;        // e.g. "HMP5S9WV7A5KFX5"
+  txnId: string | null;       // HDFC transaction ID (available after payment)
+  txnUuid: string | null;     // HDFC txn UUID
+  gatewayStatus: string;      // "CHARGED" | "PENDING" | "AUTHORIZATION_FAILED" | …
+  paidAt: string | null;      // ISO timestamp of last status update
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -300,6 +309,7 @@ export interface Order {
   tax?: number;
   paymentMethod?: string | null;
   paymentStatus?: string | null;
+  paymentGateway?: PaymentGatewayInfo | null;   // populated for HDFC payments, null for COD
   shippingAddress?: UserAddress | null;
   trackingNumber?: string | null;
   items: OrderItem[];

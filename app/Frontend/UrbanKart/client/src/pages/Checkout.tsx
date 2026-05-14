@@ -367,6 +367,7 @@ export default function Checkout() {
     orderNumber: string;
     total: number;
     upiIntentUri: string;
+    hdfcOrderId?: string;
   } | null>(null);
   const [upiPolling, setUpiPolling] = useState(false);
   const upiPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -398,12 +399,17 @@ export default function Checkout() {
     setUpiPolling(true);
     upiPollRef.current = setInterval(async () => {
       try {
-        const res = await fetchApi<{ paid: boolean; status: string }>(
+        const res = await fetchApi<{
+          paid: boolean;
+          status: string;
+          hdfcOrderId: string;
+          orderNumber: string;
+          amount: number;
+        }>(
           `payments/hdfc/status/${upiPending.orderId}`
         );
         if (res.success && res.data?.paid) {
           clearInterval(upiPollRef.current!);
-          setUpiPending(null);
           setUpiPolling(false);
           clearCart();
           setOrderSuccess({
@@ -411,7 +417,9 @@ export default function Checkout() {
             orderNumber: upiPending.orderNumber,
             status: "PROCESSING",
             total: upiPending.total,
+            hdfcOrderId: res.data.hdfcOrderId ?? upiPending.hdfcOrderId,
           });
+          setUpiPending(null);
         }
       } catch {
         // silent — keep polling
@@ -462,18 +470,43 @@ export default function Checkout() {
 
   if (orderSuccess) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="max-w-md mx-auto px-4 py-16 text-center space-y-6">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
-        <h1 className="text-2xl font-display font-bold mb-2" data-testid="text-order-success">Order Placed Successfully!</h1>
-        <p className="text-muted-foreground mb-2">
-          Your order <span className="font-semibold text-foreground">#{orderSuccess.orderNumber}</span> has been placed.
+        <h1 className="text-2xl font-display font-bold text-green-700" data-testid="text-order-success">
+          Payment Successful!
+        </h1>
+
+        {/* Required by HDFC: Order Number, HDFC Order ID, Amount, Success message */}
+        <div className="bg-muted/50 rounded-xl p-5 text-left space-y-3 border border-border">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Order Number</span>
+            <span className="font-semibold">#{orderSuccess.orderNumber}</span>
+          </div>
+          {orderSuccess.hdfcOrderId && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">HDFC Order ID</span>
+              <span className="font-mono text-xs font-semibold">{orderSuccess.hdfcOrderId}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Amount Paid</span>
+            <span className="font-bold text-green-700">{formatPrice(orderSuccess.total)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Status</span>
+            <span className="font-semibold text-green-600">✅ Confirmed</span>
+          </div>
+        </div>
+
+        <p className="text-muted-foreground text-sm">
+          Your order is confirmed and is now being processed.
         </p>
-        <p className="text-muted-foreground mb-6">Total: {formatPrice(orderSuccess.total)}</p>
-        <div className="flex gap-3 justify-center">
+
+        <div className="flex gap-3 justify-center pt-2">
           <Link href="/account/orders">
-            <Button data-testid="button-view-orders">View Orders</Button>
+            <Button data-testid="button-view-orders">View My Orders</Button>
           </Link>
           <Link href="/shop">
             <Button variant="outline" data-testid="button-continue-shopping-success">Continue Shopping</Button>
@@ -627,6 +660,7 @@ export default function Checkout() {
               orderNumber: res.data.orderNumber,
               total: res.data.total,
               upiIntentUri: res.data.upiIntentUri,
+              hdfcOrderId: res.data.hdfcOrderId,
             });
           } else {
             toast({
@@ -637,7 +671,8 @@ export default function Checkout() {
           }
         } else if (res.data.redirectRequired) {
           if (res.data.redirectUrl) {
-            clearCart();
+            // Do NOT clear cart here — clearing before redirect causes a flash of "cart is empty"
+            // Cart is cleared on the callback page after payment is confirmed
             window.location.href = res.data.redirectUrl;
           } else {
             toast({

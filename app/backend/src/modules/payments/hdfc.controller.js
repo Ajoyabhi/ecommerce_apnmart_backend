@@ -224,7 +224,14 @@ exports.checkPaymentStatus = async (req, res, next) => {
 
         const hdfcPayment = await prisma.hdfcPayment.findUnique({
             where: { orderId },
-            include: { order: { select: { userId: true } } },
+            include: {
+                order: {
+                    include: {
+                        user: true,
+                        items: true,
+                    },
+                },
+            },
         });
 
         if (!hdfcPayment) {
@@ -236,24 +243,69 @@ exports.checkPaymentStatus = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Forbidden' });
         }
 
-        // Fetch live status from HDFC
+        // Fetch live status from HDFC — log full response for bank verification records
         const hdfcData = await getHdfcOrderStatus(hdfcPayment.hdfcOrderId, userId);
         const latestStatus = hdfcData.status;
 
-        // Sync status locally if it changed
-        if (latestStatus && latestStatus !== hdfcPayment.status) {
+        // txn_id may arrive in the order status response after payment completes
+        const latestTxnId = hdfcData.txn_id || hdfcData.txnId || hdfcPayment.txnId || null;
+
+        logger.info({
+            hdfcOrderId: hdfcPayment.hdfcOrderId,
+            ourOrderId: orderId,
+            orderNumber: hdfcPayment.order.orderNumber,
+            hdfcRawResponse: hdfcData,
+        }, '[HDFC] Order Status API response');
+
+        const isPaid = latestStatus === 'CHARGED';
+        const alreadyProcessed =
+            hdfcPayment.order.status === 'PROCESSING' &&
+            hdfcPayment.order.paymentStatus === 'paid';
+
+        if (isPaid && !alreadyProcessed) {
+            // Payment confirmed via polling — update order + hdfcPayment atomically
+            await prisma.$transaction([
+                prisma.hdfcPayment.update({
+                    where: { orderId },
+                    data: {
+                        status: latestStatus,
+                        ...(latestTxnId ? { txnId: latestTxnId } : {}),
+                    },
+                }),
+                prisma.order.update({
+                    where: { id: orderId },
+                    data: { status: 'PROCESSING', paymentStatus: 'paid' },
+                }),
+            ]);
+
+            // Clear the server-side cart
+            await redisClient.del(`cart:${userId}`);
+
+            // Send order confirmation email (non-blocking)
+            onOrderPlaced(hdfcPayment.order);
+
+            logger.info(`[HDFC] checkPaymentStatus: order ${orderId} marked PROCESSING (detected via polling)`);
+        } else if (latestStatus && latestStatus !== hdfcPayment.status) {
+            // Intermediate status change — just keep hdfcPayment in sync
             await prisma.hdfcPayment.update({
                 where: { orderId },
-                data: { status: latestStatus },
+                data: {
+                    status: latestStatus,
+                    ...(latestTxnId && latestTxnId !== hdfcPayment.txnId ? { txnId: latestTxnId } : {}),
+                },
             });
         }
 
         return res.status(200).json({
             success: true,
             orderId,
+            orderNumber: hdfcPayment.order.orderNumber,
             hdfcOrderId: hdfcPayment.hdfcOrderId,
+            amount: Number(hdfcPayment.order.total),
+            paymentMethod: hdfcPayment.order.paymentMethod,
             status: latestStatus || hdfcPayment.status,
-            paid: latestStatus === 'CHARGED',
+            paid: isPaid,
+            hdfcRawResponse: hdfcData,
         });
     } catch (error) {
         logger.error(`HDFC status check error: ${error.message}`);
@@ -292,10 +344,17 @@ exports.handleReturn = async (req, res, next) => {
 
         // Always verify with HDFC server-side — never trust POST body alone
         let liveStatus = null;
+        let hdfcRawResponse = null;
         try {
-            const hdfcData = await getHdfcOrderStatus(hdfcOrderId, hdfcPayment.order.userId);
-            liveStatus = hdfcData.status;
-            logger.info({ hdfcOrderId, liveStatus }, '[HDFC] return: live status from HDFC');
+            hdfcRawResponse = await getHdfcOrderStatus(hdfcOrderId, hdfcPayment.order.userId);
+            liveStatus = hdfcRawResponse.status;
+            logger.info({
+                hdfcOrderId,
+                ourOrderId: hdfcPayment.orderId,
+                orderNumber: hdfcPayment.order.orderNumber,
+                liveStatus,
+                hdfcRawResponse,
+            }, '[HDFC] return: Order Status API response (bank verification log)');
         } catch (err) {
             logger.error(`[HDFC] return: status check failed — ${err.message}`);
         }
@@ -330,7 +389,13 @@ exports.handleReturn = async (req, res, next) => {
         }
 
         const status = isPaid ? 'success' : 'failed';
-        return res.redirect(`${frontendBase}/payment/hdfc/callback?orderId=${hdfcPayment.orderId}&status=${status}`);
+        const amount = Number(hdfcPayment.order.total).toFixed(2);
+        const orderNumber = encodeURIComponent(hdfcPayment.order.orderNumber);
+        const encodedHdfcOrderId = encodeURIComponent(hdfcOrderId);
+
+        return res.redirect(
+            `${frontendBase}/payment/hdfc/callback?orderId=${hdfcPayment.orderId}&status=${status}&hdfcOrderId=${encodedHdfcOrderId}&amount=${amount}&orderNumber=${orderNumber}`
+        );
     } catch (error) {
         logger.error(`[HDFC] handleReturn error: ${error.message}`);
         const frontendBase = FRONTEND_URL;

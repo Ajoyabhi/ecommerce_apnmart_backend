@@ -386,6 +386,62 @@ export default function Orders() {
                   <p className="font-mono text-muted-foreground">{orderDetail.trackingNumber}</p>
                 </div>
               )}
+
+              {/* Payment Gateway Details — shown for HDFC UPI / Card / NB payments */}
+              {orderDetail.paymentGateway && (
+                <div className="rounded-xl border border-border overflow-hidden text-sm">
+                  <div className="px-4 py-2.5 bg-muted/50 border-b border-border">
+                    <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                      Payment Details
+                    </p>
+                  </div>
+                  <div className="px-4 py-3 space-y-2.5">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gateway</span>
+                      <span className="font-medium">{orderDetail.paymentGateway.provider}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">HDFC Order ID</span>
+                      <span className="font-mono text-xs font-semibold">{orderDetail.paymentGateway.hdfcOrderId}</span>
+                    </div>
+                    {orderDetail.paymentGateway.txnId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Transaction ID</span>
+                        <span className="font-mono text-xs font-semibold">{orderDetail.paymentGateway.txnId}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gateway Status</span>
+                      <span
+                        className={`font-semibold text-xs px-2 py-0.5 rounded-full ${
+                          orderDetail.paymentGateway.gatewayStatus === "CHARGED"
+                            ? "bg-green-100 text-green-700"
+                            : orderDetail.paymentGateway.gatewayStatus?.includes("FAILED") ||
+                              orderDetail.paymentGateway.gatewayStatus?.includes("DECLINED")
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {orderDetail.paymentGateway.gatewayStatus}
+                      </span>
+                    </div>
+                    {orderDetail.paymentGateway.paidAt && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Paid At</span>
+                        <span className="text-xs">
+                          {new Date(orderDetail.paymentGateway.paidAt).toLocaleString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
         </DialogContent>
