@@ -126,7 +126,7 @@ export default function CategoryFeed() {
               return (
                 <Link
                   key={sub.id}
-                  href={`/shop?category=${slug}&subcategory=${sub.slug}`}
+                  href={`/shop?category=${sub.slug}`}
                   className="group bg-card border border-border rounded-2xl px-3 py-4 flex flex-col items-center justify-center gap-2 hover:border-primary/60 hover:shadow-md transition-all"
                   data-testid={`card-subcategory-${sub.slug}`}
                 >
@@ -216,7 +216,7 @@ export default function CategoryFeed() {
             {subcategories.map((sub) => (
               <Link
                 key={sub.id}
-                href={`/shop?category=${slug}&subcategory=${sub.slug}`}
+                href={`/shop?category=${sub.slug}`}
                 className="group flex items-center gap-4 p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all"
                 data-testid={`link-shop-category-${sub.slug}`}
               >

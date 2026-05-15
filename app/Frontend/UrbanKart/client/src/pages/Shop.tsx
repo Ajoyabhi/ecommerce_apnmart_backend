@@ -148,6 +148,20 @@ export default function Shop() {
     setLocation(`/shop?${newParams.toString()}`);
   };
 
+  // Use this instead of updateFilter("category", slug) — clears stale subcategory
+  // params so the backend never receives conflicting category + subcategory values.
+  const navigateToCategory = (slug: string) => {
+    const newParams = new URLSearchParams(searchString);
+    if (slug) {
+      newParams.set("category", slug);
+    } else {
+      newParams.delete("category");
+    }
+    newParams.delete("subcategory");
+    newParams.delete("sub_subcategory");
+    setLocation(`/shop?${newParams.toString()}`);
+  };
+
   const applyPriceFilter = () => {
     const newParams = new URLSearchParams(searchString);
     if (localPrice.min) newParams.set("price_min", localPrice.min);
@@ -371,7 +385,7 @@ export default function Shop() {
               <ChevronRight className="w-3.5 h-3.5" />
               {crumb.slug ? (
                 <button
-                  onClick={() => updateFilter("category", crumb.slug!)}
+                  onClick={() => navigateToCategory(crumb.slug!)}
                   className="hover:text-foreground transition-colors"
                 >
                   {crumb.label}
@@ -474,7 +488,6 @@ export default function Shop() {
                 <div className="space-y-0.5">
                   <button
                     onClick={() => {
-                      // Reset to all products and show latest-added items first.
                       setLocation(`/shop?sort=newest`);
                     }}
                     className={cn(
@@ -509,7 +522,7 @@ export default function Shop() {
                             </span>
                           ) : (
                             <button
-                              onClick={() => updateFilter("category", cat.slug)}
+                              onClick={() => navigateToCategory(cat.slug)}
                               className={cn(
                                 "flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors",
                                 isParentActive
@@ -553,7 +566,7 @@ export default function Shop() {
                               ) : (
                                 <button
                                   key={sub.id}
-                                  onClick={() => updateFilter("category", sub.slug)}
+                                  onClick={() => navigateToCategory(sub.slug)}
                                   className={cn(
                                     "w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors",
                                     filters.category === sub.slug
@@ -671,7 +684,7 @@ export default function Shop() {
                   ) : (
                     <button
                       key={sub.id}
-                      onClick={() => updateFilter("category", sub.slug)}
+                      onClick={() => navigateToCategory(sub.slug)}
                       className={cn(
                         "px-4 py-2 rounded-full text-sm font-medium border transition-all",
                         activeSubSlug === sub.slug
