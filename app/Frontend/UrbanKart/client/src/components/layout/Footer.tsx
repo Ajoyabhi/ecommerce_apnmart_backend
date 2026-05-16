@@ -76,16 +76,11 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-display font-bold mb-6">Help & Support</h4>
+            <h4 className="font-display font-bold mb-6">Policies</h4>
             <ul className="space-y-4 text-muted-foreground text-sm">
               <li>
-                <Link href="/account/orders" className="hover:text-primary transition-colors">
-                  Track Order
-                </Link>
-              </li>
-              <li>
-                <Link href="/returns-exchanges" className="hover:text-primary transition-colors">
-                  Return Policy
+                <Link href="/privacy-policy" className="hover:text-primary transition-colors">
+                  Privacy Policy
                 </Link>
               </li>
               <li>
@@ -94,18 +89,18 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/terms-and-conditions" className="hover:text-primary transition-colors">
+                  Terms &amp; Conditions
+                </Link>
+              </li>
+              <li>
                 <Link href="/refund-cancellation-policy" className="hover:text-primary transition-colors">
                   Refund and Cancellation Policy
                 </Link>
               </li>
               <li>
-                <Link href="/customer-service" className="hover:text-primary transition-colors">
-                  Customer Service
-                </Link>
-              </li>
-              <li>
-                <Link href="/faqs" className="hover:text-primary transition-colors">
-                  FAQs
+                <Link href="/returns-exchanges" className="hover:text-primary transition-colors">
+                  Return Policy
                 </Link>
               </li>
             </ul>
@@ -133,14 +128,14 @@ export function Footer() {
         <div className="border-t border-border mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
           <p>© 2025 Anpamart by Shrivatsam Projects Private Limited. All rights reserved.</p>
           <div className="flex gap-6">
-            <Link href="/privacy-policy" className="hover:text-primary">
-              Privacy Policy
+            <Link href="/account/orders" className="hover:text-primary">
+              Track Order
             </Link>
-            <Link href="/terms-and-conditions" className="hover:text-primary">
-              Terms & Conditions
+            <Link href="/customer-service" className="hover:text-primary">
+              Customer Service
             </Link>
-            <Link href="/cookie-policy" className="hover:text-primary">
-              Cookie Policy
+            <Link href="/faqs" className="hover:text-primary">
+              FAQs
             </Link>
           </div>
         </div>

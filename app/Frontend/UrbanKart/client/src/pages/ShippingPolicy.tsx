@@ -25,7 +25,7 @@ export default function ShippingPolicy() {
         <section>
           <h2 className="font-semibold text-foreground mb-2">2. Domestic Shipping Rates and Estimates</h2>
           <p className="mb-2">
-            Shipping charges for your order will be calculated and displayed at checkout. 
+            Shipping charges for your order will be calculated and displayed at checkout.
             We offer the following shipping options for domestic deliveries:
           </p>
           <div className="overflow-x-auto mt-4 mb-4">
@@ -40,13 +40,13 @@ export default function ShippingPolicy() {
               <tbody className="divide-y divide-border">
                 <tr>
                   <td className="px-4 py-2">Standard Shipping</td>
-                  <td className="px-4 py-2">3-5 Business Days</td>
-                  <td className="px-4 py-2">Free for orders over $50.00</td>
+                  <td className="px-4 py-2">3–5 Business Days</td>
+                  <td className="px-4 py-2">Free for orders above ₹500 &nbsp;|&nbsp; ₹49 for orders below ₹500</td>
                 </tr>
                 <tr>
                   <td className="px-4 py-2">Expedited Shipping</td>
-                  <td className="px-4 py-2">1-2 Business Days</td>
-                  <td className="px-4 py-2">$15.00</td>
+                  <td className="px-4 py-2">1–2 Business Days</td>
+                  <td className="px-4 py-2">₹99</td>
                 </tr>
               </tbody>
             </table>
