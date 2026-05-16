@@ -275,7 +275,35 @@ exports.getOrders = async (req, res, next) => {
       prisma.order.count({ where: { userId } }),
     ]);
 
-    const data = orders.map(mapOrderToDto);
+    // Build a fresh productImage map from MongoDB so stale/localhost URLs
+    // stored at checkout time are always replaced with the real current image.
+    const productIds = [...new Set(
+      orders.flatMap((o) => o.items.map((i) => i.productId))
+    )];
+    const imageByProductId = new Map();
+    if (productIds.length) {
+      const richDocs = await ProductRichContent.find(
+        { pg_id: { $in: productIds } },
+        { pg_id: 1, media_gallery: 1 }
+      ).lean();
+      richDocs.forEach((doc) => {
+        if (!doc || !doc.pg_id) return;
+        const gallery = doc.media_gallery || [];
+        const primary = gallery.find((m) => m.is_primary) || gallery[0];
+        if (primary && primary.url) {
+          imageByProductId.set(String(doc.pg_id), primary.url);
+        }
+      });
+    }
+
+    const data = orders.map((order) => {
+      const dto = mapOrderToDto(order);
+      dto.items = dto.items.map((item) => ({
+        ...item,
+        productImage: imageByProductId.get(String(item.productId)) || item.productImage || null,
+      }));
+      return dto;
+    });
 
     res.status(200).json({
       success: true,
@@ -310,9 +338,33 @@ exports.getOrderById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    const dto = mapOrderToDto(order);
+
+    // Enrich productImage from MongoDB so the detail dialog always shows real images.
+    const productIds = dto.items.map((i) => i.productId).filter(Boolean);
+    if (productIds.length) {
+      const richDocs = await ProductRichContent.find(
+        { pg_id: { $in: productIds } },
+        { pg_id: 1, media_gallery: 1 }
+      ).lean();
+      const imageByProductId = new Map();
+      richDocs.forEach((doc) => {
+        if (!doc || !doc.pg_id) return;
+        const gallery = doc.media_gallery || [];
+        const primary = gallery.find((m) => m.is_primary) || gallery[0];
+        if (primary && primary.url) {
+          imageByProductId.set(String(doc.pg_id), primary.url);
+        }
+      });
+      dto.items = dto.items.map((item) => ({
+        ...item,
+        productImage: imageByProductId.get(String(item.productId)) || item.productImage || null,
+      }));
+    }
+
     res.status(200).json({
       success: true,
-      data: mapOrderToDto(order),
+      data: dto,
     });
   } catch (error) {
     next(error);

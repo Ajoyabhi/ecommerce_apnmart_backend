@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "wouter";
+import { getMediaUrl } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -144,7 +145,7 @@ export default function Orders() {
                           <div key={item.id} className="flex items-center gap-2">
                             {item.productImage ? (
                               <img
-                                src={item.productImage}
+                                src={getMediaUrl(item.productImage)}
                                 alt={item.productName}
                                 className="w-12 h-12 rounded-lg object-cover border border-border"
                               />
@@ -324,7 +325,7 @@ export default function Orders() {
                 {orderDetail.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 p-3">
                     {item.productImage ? (
-                      <img src={item.productImage} alt={item.productName} className="w-14 h-14 rounded-lg object-cover border" />
+                      <img src={getMediaUrl(item.productImage)} alt={item.productName} className="w-14 h-14 rounded-lg object-cover border" />
                     ) : (
                       <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center">
                         <Package className="w-6 h-6 text-muted-foreground" />
