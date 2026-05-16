@@ -19,6 +19,7 @@ router.get('/orders', userController.getOrders);
 router.post('/orders/request-cod-otp', userController.requestCodOtp);
 router.post('/orders/checkout', userController.checkout);
 router.get('/orders/:orderId', userController.getOrderById);
+router.post('/orders/:orderId/cancel', userController.cancelOrder);
 router.post('/orders/:orderId/return', userController.requestReturn);
 
 // 4. Addresses

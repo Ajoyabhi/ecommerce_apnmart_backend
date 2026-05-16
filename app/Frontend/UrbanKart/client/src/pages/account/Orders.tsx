@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AccountLayout } from "@/components/account/AccountLayout";
-import { useOrders, useOrderDetail, useRequestReturn } from "@/hooks/use-user";
+import { useOrders, useOrderDetail, useRequestReturn, useCancelOrder } from "@/hooks/use-user";
 import { formatPrice } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,9 @@ import {
   Eye,
   Truck,
   RotateCcw,
-  Search,
   ShoppingBag,
   X,
+  XCircle,
 } from "lucide-react";
 import { Link } from "wouter";
 import { getMediaUrl } from "@/lib/utils";
@@ -49,7 +49,9 @@ export default function Orders() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [returnOrderId, setReturnOrderId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const requestReturn = useRequestReturn();
+  const cancelOrder = useCancelOrder();
 
   const { data: orderDetail, isLoading: detailLoading } = useOrderDetail(selectedOrderId || "");
 
@@ -174,11 +176,23 @@ export default function Orders() {
                             {order.items.length} item{order.items.length !== 1 ? "s" : ""}
                           </span>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {order.trackingNumber && (
                             <Button variant="outline" size="sm" className="text-xs" data-testid={`button-track-${order.id}`}>
                               <Truck className="w-3.5 h-3.5 mr-1" />
                               Track
+                            </Button>
+                          )}
+                          {["PENDING", "CONFIRMED", "PROCESSING"].includes(order.status) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                              onClick={() => setCancelOrderId(order.id)}
+                              data-testid={`button-cancel-${order.id}`}
+                            >
+                              <XCircle className="w-3.5 h-3.5 mr-1" />
+                              Cancel
                             </Button>
                           )}
                           {order.returnEligible && order.status === "DELIVERED" && (
@@ -445,6 +459,39 @@ export default function Orders() {
               )}
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!cancelOrderId} onOpenChange={(open) => !open && setCancelOrderId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this order? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOrderId(null)}>
+              Keep Order
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelOrder.isPending}
+              onClick={() => {
+                if (!cancelOrderId) return;
+                cancelOrder.mutate(cancelOrderId, {
+                  onSuccess: () => setCancelOrderId(null),
+                });
+              }}
+              data-testid="button-confirm-cancel"
+            >
+              {cancelOrder.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cancelling...</>
+              ) : (
+                "Yes, Cancel Order"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

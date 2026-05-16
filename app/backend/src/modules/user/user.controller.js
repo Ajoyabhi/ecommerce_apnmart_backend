@@ -839,6 +839,60 @@ const returnRequestSchema = z.object({
   reason: z.string().min(1),
 });
 
+const CANCELLABLE_STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING'];
+
+exports.cancelOrder = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { orderId } = req.params;
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        items: {
+          include: { variant: true },
+        },
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (!CANCELLABLE_STATUSES.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be cancelled once it has been ${order.status.toLowerCase()}.`,
+      });
+    }
+
+    // Restore inventory for each variant in the order
+    for (const item of order.items) {
+      if (item.variantId) {
+        await prisma.inventory.updateMany({
+          where: { variantId: item.variantId },
+          data: { quantity: { increment: item.quantity } },
+        });
+      }
+    }
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'CANCELLED',
+        returnEligible: false,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Order cancelled successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.requestReturn = async (req, res, next) => {
   try {
     const userId = req.user.id;

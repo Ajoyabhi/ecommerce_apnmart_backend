@@ -368,3 +368,20 @@ export function useRequestReturn() {
     },
   });
 }
+
+export function useCancelOrder() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      return fetchApi<void>(`user/orders/${orderId}/cancel`, { method: "POST" });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/v1/user/orders"] });
+      toast({ title: "Order cancelled", description: "Your order has been cancelled successfully." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Cancellation failed", description: err.message, variant: "destructive" });
+    },
+  });
+}
