@@ -501,7 +501,7 @@ export default function Shop() {
                     All Categories
                   </button>
 
-                  {categories.map((cat) => {
+                  {categories.filter((cat) => !isElectronicsSlug(cat.slug)).map((cat) => {
                     const hasChildren = cat.children && cat.children.length > 0;
                     const isExpanded = expandedCats.has(cat.slug);
                     const isParentActive = filters.category === cat.slug;

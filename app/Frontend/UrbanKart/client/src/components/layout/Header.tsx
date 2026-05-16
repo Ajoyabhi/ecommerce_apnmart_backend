@@ -152,7 +152,10 @@ export function Header() {
                   className="h-12 w-14 rounded-lg m-2"
                   style={{ objectPosition: 'center top' }}
                 />
-                <span className="hidden sm:inline">Anpamart</span>
+                <div className="hidden sm:flex flex-col leading-none">
+                  <span className="text-2xl font-black tracking-tighter">Anpamart</span>
+                  <span className="text-[9px] font-bold tracking-wide text-muted-foreground uppercase mt-0.5">Shrivatsam Projects Private Limited</span>
+                </div>
               </Link>
             </div>
 
