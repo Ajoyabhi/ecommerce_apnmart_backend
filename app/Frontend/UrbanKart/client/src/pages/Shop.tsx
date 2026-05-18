@@ -196,6 +196,7 @@ export default function Shop() {
   };
 
   const isElectronicsSlug = (slug?: string | null) => slug === "electronics";
+  const isHiddenCategory = (slug?: string | null) => ["electronics", "beauty", "home"].includes(slug ?? "");
 
   const selectedCategory = useMemo(
     () => (filters.category ? findCategoryBySlug(categories, filters.category) : null),
@@ -501,7 +502,7 @@ export default function Shop() {
                     All Categories
                   </button>
 
-                  {categories.filter((cat) => !isElectronicsSlug(cat.slug)).map((cat) => {
+                  {categories.filter((cat) => !isHiddenCategory(cat.slug)).map((cat) => {
                     const hasChildren = cat.children && cat.children.length > 0;
                     const isExpanded = expandedCats.has(cat.slug);
                     const isParentActive = filters.category === cat.slug;

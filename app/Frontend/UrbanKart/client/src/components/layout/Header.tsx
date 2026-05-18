@@ -67,7 +67,7 @@ export function Header() {
 
   const navItems: NavItem[] = useMemo(() => {
     const fromApi = menuCategories
-      .filter((c) => c.slug !== "electronics")
+      .filter((c) => !["electronics", "beauty", "home"].includes(c.slug))
       .map((c) => {
         const hasSubs = !!(c.subcategories && c.subcategories.length > 0);
         return {
