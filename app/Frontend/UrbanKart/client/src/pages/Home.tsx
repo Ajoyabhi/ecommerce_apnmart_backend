@@ -80,14 +80,6 @@ export default function Home() {
   });
   const womenDresses = womenDressesData?.list ?? [];
 
-  const { data: beautyPicksData } = useProducts({
-    // Use the root beauty category so we always get a good mix
-    // of lipsticks, foundations and other makeup products.
-    category: "beauty",
-    status: "published",
-    limit: 8,
-  });
-  const beautyPicks = beautyPicksData?.list ?? [];
 
   // Kids / teens fashion (boys & girls)
   const { data: boysFashionData } = useProducts({
@@ -336,11 +328,6 @@ export default function Home() {
               href: "/shop?category=fashion-women",
             },
             {
-              name: "Beauty & Makeup",
-              icon: "26-makeup.png",
-              href: "/shop?category=beauty",
-            },
-            {
               name: "Home Decor",
               icon: "36-toys.png",
               href: "/shop?category=home-decor",
@@ -533,38 +520,6 @@ export default function Home() {
           ) : (
             <div className="text-center text-muted-foreground">
               Kids&apos; fashion products will appear here once seeded.
-            </div>
-          )}
-        </div>
-
-        {/* Beauty & makeup */}
-        <div>
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <h2 className="font-display font-bold text-3xl">
-                Beauty &amp; Makeup
-              </h2>
-              <p className="text-muted-foreground mt-2">
-                Lipsticks, foundations and more from the beauty collection.
-              </p>
-            </div>
-            <Link
-              href="/shop?category=beauty-lipstick"
-              className="text-primary font-medium hover:underline flex items-center gap-1"
-            >
-              Shop Beauty <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {beautyPicks.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {beautyPicks.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-muted-foreground">
-              Beauty products will appear here once seeded.
             </div>
           )}
         </div>
