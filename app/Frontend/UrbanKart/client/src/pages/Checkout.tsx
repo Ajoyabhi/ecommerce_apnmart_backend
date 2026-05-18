@@ -63,7 +63,8 @@ const PAYMENT_METHODS = [
   { value: "netbanking", label: "Net Banking", description: "All major banks" },
 ];
 
-const SHIPPING_COST = 0;
+const FREE_SHIPPING_THRESHOLD = 500; // must match backend user.controller.js
+const FLAT_SHIPPING_COST = 50;       // must match backend user.controller.js
 const TAX_RATE = 0;
 
 function usePincodeAPI() {
@@ -584,7 +585,8 @@ export default function Checkout() {
 
   const subtotal = getCartTotal();
   const tax = 0;
-  const total = +(subtotal + SHIPPING_COST).toFixed(2);
+  const shippingCost = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
+  const total = +(subtotal + shippingCost).toFixed(2);
 
   const handlePlaceOrder = async () => {
     const shippingErr = validateAddress(shippingAddress, true);
@@ -638,7 +640,7 @@ export default function Checkout() {
       paymentMethod,
       items: orderItems,
       subtotal,
-      shippingCost: SHIPPING_COST,
+      shippingCost: shippingCost,
       tax,
       total,
     };
@@ -899,10 +901,18 @@ export default function Checkout() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Shipping</span>
-                      <span className="text-green-600 font-medium" data-testid="text-shipping">
-                        {SHIPPING_COST === 0 ? "Free" : formatPrice(SHIPPING_COST)}
+                      <span
+                        className={shippingCost === 0 ? "text-green-600 font-medium" : "font-medium"}
+                        data-testid="text-shipping"
+                      >
+                        {shippingCost === 0 ? "Free" : formatPrice(shippingCost)}
                       </span>
                     </div>
+                    {shippingCost > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Add {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)} more for free shipping
+                      </p>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tax</span>
                       <span data-testid="text-tax">{formatPrice(tax)}</span>

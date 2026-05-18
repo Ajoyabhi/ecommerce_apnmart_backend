@@ -34,6 +34,7 @@ import AccountAddresses from "@/pages/account/Addresses";
 import AccountPayments from "@/pages/account/Payments";
 import AccountReturns from "@/pages/account/Returns";
 import AccountNotifications from "@/pages/account/Notifications";
+import AboutUs from "@/pages/AboutUs";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsAndConditions from "@/pages/TermsAndConditions";
 import ShippingPolicy from "@/pages/ShippingPolicy";
@@ -93,6 +94,7 @@ function StorefrontRouter() {
           <Route path="/account/notifications">
             {() => <ProtectedUser component={AccountNotifications} />}
           </Route>
+          <Route path="/about-us" component={AboutUs} />
           <Route path="/privacy-policy" component={PrivacyPolicy} />
           <Route path="/terms-and-conditions" component={TermsAndConditions} />
           <Route path="/shipping-policy" component={ShippingPolicy} />

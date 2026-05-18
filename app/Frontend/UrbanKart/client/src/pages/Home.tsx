@@ -29,7 +29,7 @@ const FALLBACK_HERO = {
 const SERVICE_HIGHLIGHTS = [
   {
     title: "Free Shipping",
-    desc: "On orders over ₹1,000",
+    desc: "On orders over ₹500",
   },
   {
     title: "Secure Payment",

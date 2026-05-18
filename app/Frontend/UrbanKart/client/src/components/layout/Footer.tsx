@@ -5,7 +5,7 @@ export function Footer() {
   return (
     <footer className="bg-card border-t border-border mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10">
           
           <div className="lg:col-span-2">
             <div className="font-display font-black text-2xl tracking-tighter flex items-center gap-2 mb-3">
@@ -42,6 +42,33 @@ export function Footer() {
                 </a>
               ))}
             </div>
+          </div>
+
+          {/* About Us */}
+          <div>
+            <h4 className="font-display font-bold mb-6">Company</h4>
+            <ul className="space-y-4 text-muted-foreground text-sm">
+              <li>
+                <Link href="/about-us" className="hover:text-primary transition-colors">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/about-us#mission" className="hover:text-primary transition-colors">
+                  Our Mission
+                </Link>
+              </li>
+              <li>
+                <Link href="/customer-service" className="hover:text-primary transition-colors">
+                  Contact Us
+                </Link>
+              </li>
+              <li>
+                <Link href="/faqs" className="hover:text-primary transition-colors">
+                  FAQs
+                </Link>
+              </li>
+            </ul>
           </div>
 
           <div>
@@ -127,7 +154,10 @@ export function Footer() {
         
         <div className="border-t border-border mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
           <p>© 2025 Anpamart by Shrivatsam Projects Private Limited. All rights reserved.</p>
-          <div className="flex gap-6">
+          <div className="flex gap-6 flex-wrap justify-center md:justify-end">
+            <Link href="/about-us" className="hover:text-primary">
+              About Us
+            </Link>
             <Link href="/account/orders" className="hover:text-primary">
               Track Order
             </Link>

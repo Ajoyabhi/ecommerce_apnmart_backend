@@ -128,7 +128,7 @@ export function Header() {
   return (
     <>
       <div className="bg-primary text-primary-foreground text-xs py-2 px-4 text-center font-medium tracking-wide">
-        Free express delivery on orders over ₹1,000.{" "}
+        Free delivery on orders over ₹500.{" "}
         <Link href="/shop" className="underline cursor-pointer">
           Shop Now
         </Link>
