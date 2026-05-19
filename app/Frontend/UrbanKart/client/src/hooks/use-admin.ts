@@ -518,3 +518,139 @@ export function useAdminUploadMedia() {
     mutationFn: (files: File[]) => uploadAdminMedia(files),
   });
 }
+
+// ---- Accuzpay Transactions ----
+
+export interface AccuzpayTransaction {
+  id: string;
+  referenceId: string;
+  hdfcOrderId: string | null;
+  txnId: string | null;
+  customerId: string | null;
+  amount: string;
+  status: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  forwardedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items?: AccuzpayPaymentItem[];
+}
+
+export interface AccuzpayPaymentItem {
+  id: string;
+  productId: string;
+  variantId: string | null;
+  productName: string;
+  variantName: string | null;
+  unitPrice: string;
+  quantity: number;
+  totalPrice: string;
+}
+
+export interface AccuzpayProductResult {
+  id: string;
+  name: string;
+  sku: string;
+  basePrice: string;
+  variants: { id: string; name: string | null; priceAdjustment: string }[];
+}
+
+export interface AccuzpayTransactionsQuery {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface AccuzpayTransactionsResponse {
+  transactions: AccuzpayTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function useAccuzpayTransactions(query: AccuzpayTransactionsQuery) {
+  const qs = new URLSearchParams();
+  if (query.page) qs.set("page", String(query.page));
+  if (query.limit) qs.set("limit", String(query.limit));
+  if (query.status && query.status !== "ALL") qs.set("status", query.status);
+  if (query.search) qs.set("search", query.search);
+  if (query.from) qs.set("startDate", query.from);
+  if (query.to) qs.set("endDate", query.to);
+  const qStr = qs.toString();
+
+  return useQuery({
+    queryKey: ["admin", "accuzpay-transactions", qStr],
+    queryFn: async (): Promise<AccuzpayTransactionsResponse> => {
+      const raw = await fetchApi<AccuzpayTransaction[]>(
+        `/payments/hdfc/accuzpay/transactions?${qStr}`
+      ) as unknown as {
+        success: boolean;
+        data?: AccuzpayTransaction[];
+        pagination?: { total: number; page: number; limit: number; pages: number };
+      };
+      const transactions = raw.data ?? [];
+      const pg = raw.pagination;
+      return {
+        transactions,
+        total: pg?.total ?? transactions.length,
+        page: pg?.page ?? (query.page ?? 1),
+        limit: pg?.limit ?? (query.limit ?? 20),
+        totalPages: pg?.pages ?? 1,
+      };
+    },
+  });
+}
+
+export function useAccuzpayTransaction(id: string) {
+  return useQuery({
+    queryKey: ["admin", "accuzpay-transactions", id],
+    queryFn: async (): Promise<AccuzpayTransaction | null> => {
+      if (!id) return null;
+      const res = await fetchApi<AccuzpayTransaction>(
+        `/payments/hdfc/accuzpay/transactions/${encodeURIComponent(id)}`
+      );
+      return res.success && res.data ? res.data : null;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useAccuzpayProductSearch(q: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "accuzpay-products", q],
+    queryFn: async (): Promise<AccuzpayProductResult[]> => {
+      const qs = new URLSearchParams({ q });
+      const res = await fetchApi<AccuzpayProductResult[]>(
+        `/payments/hdfc/accuzpay/products?${qs}`
+      );
+      return res.success && Array.isArray(res.data) ? res.data : [];
+    },
+    enabled: enabled && q.trim().length >= 2,
+  });
+}
+
+export function useSaveAccuzpayItems() {
+  return useMutation({
+    mutationFn: async ({
+      id,
+      items,
+    }: {
+      id: string;
+      items: { productId: string; variantId?: string; quantity: number; unitPrice: number }[];
+    }) => {
+      return fetchApi(`/payments/hdfc/accuzpay/transactions/${encodeURIComponent(id)}/items`, {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      });
+    },
+    onSuccess: (_res, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "accuzpay-transactions", vars.id] });
+    },
+  });
+}

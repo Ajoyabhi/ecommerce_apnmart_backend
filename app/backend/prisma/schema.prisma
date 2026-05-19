@@ -118,9 +118,10 @@ model Product {
   isNewArrival Boolean          @default(false)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  variants     ProductVariant[]
-  orderItems   OrderItem[]
-  wishlist     WishlistItem[]
+  variants      ProductVariant[]
+  orderItems    OrderItem[]
+  wishlist      WishlistItem[]
+  accuzpayItems AccuzpayPaymentItem[]
 }
 
 model ProductVariant {
@@ -134,6 +135,7 @@ model ProductVariant {
   isActive        Boolean     @default(true)
   inventory       Inventory?
   orderItems      OrderItem[]
+  accuzpayItems   AccuzpayPaymentItem[]
 }
 
 model Inventory {
@@ -257,6 +259,59 @@ model HdfcPayment {
   sdkParams    Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model AccuzpayPayment {
+  id              String   @id @default(uuid())
+
+  referenceId     String   @unique
+  callbackUrl     String
+  hdfcOrderId     String   @unique
+  txnId           String?
+  customerId      String
+  amount          Decimal  @db.Decimal(10, 2)
+  status          String   @default("PENDING")
+  upiIntentUri    String?  @db.Text
+  sdkParams       Json?
+
+  customerName    String?
+  customerEmail   String?
+  customerPhone   String?
+  shippingAddress Json?
+
+  forwardedAt     DateTime?
+  items           AccuzpayPaymentItem[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([hdfcOrderId])
+  @@index([referenceId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AccuzpayPaymentItem {
+  id          String          @id @default(uuid())
+
+  paymentId   String
+  payment     AccuzpayPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id])
+
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+
+  productName String
+  variantName String?
+  unitPrice   Decimal         @db.Decimal(10, 2)
+  quantity    Int             @default(1)
+  totalPrice  Decimal         @db.Decimal(10, 2)
+
+  createdAt   DateTime        @default(now())
+
+  @@index([paymentId])
 }
 
 model CodOtp {

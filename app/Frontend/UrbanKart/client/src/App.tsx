@@ -22,6 +22,7 @@ import AdminInventory from "@/pages/admin/Inventory";
 import AdminBanners from "@/pages/admin/Banners";
 import AdminFeedSections from "@/pages/admin/FeedSections";
 import AdminOrders from "@/pages/admin/Orders";
+import AdminAccuzpayTransactions from "@/pages/admin/AccuzpayTransactions";
 import SignIn from "@/pages/SignIn";
 import AuthCallback from "@/pages/AuthCallback";
 import Checkout from "@/pages/Checkout";
@@ -143,6 +144,9 @@ function AdminRouter() {
       </Route>
       <Route path="/admin/orders">
         {() => <ProtectedAdmin component={AdminOrders} />}
+      </Route>
+      <Route path="/admin/accuzpay-transactions">
+        {() => <ProtectedAdmin component={AdminAccuzpayTransactions} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

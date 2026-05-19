@@ -7,7 +7,10 @@ const { protect } = require('../../middleware/authMiddleware');
 router.post('/checkout', protect, paymentController.createCheckoutSession);
 router.post('/webhook', express.raw({ type: 'application/json' }), paymentController.handleStripeWebhook);
 
-// HDFC SmartGateway
+// HDFC SmartGateway (bank-approved files)
 router.use('/hdfc', require('./hdfc/hdfc.routes'));
+
+// HDFC — Accuzpay integration (new files, approved files untouched)
+router.use('/hdfc', require('./hdfc/accuzpay.routes'));
 
 module.exports = router;

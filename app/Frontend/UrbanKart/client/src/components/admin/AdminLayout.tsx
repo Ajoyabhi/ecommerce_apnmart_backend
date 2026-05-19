@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   ShoppingCart,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { label: "Hero Banners", href: "/admin/banners", icon: Image },
   { label: "Feed Sections", href: "/admin/feed-sections", icon: LayoutGrid },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "UPI Payments", href: "/admin/accuzpay-transactions", icon: CreditCard },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
