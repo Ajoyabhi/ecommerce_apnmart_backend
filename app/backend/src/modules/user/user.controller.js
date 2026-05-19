@@ -4,6 +4,7 @@ const { ProductRichContent } = require('../../models');
 const { z } = require('zod');
 const { verifyCodOtp, createAndSendCodOtp } = require('../../services/codOtp.service');
 const { onOrderPlaced } = require('../../services/orderEmail.service');
+const { getInvoiceFilePath, invoiceExists, generateAndSaveInvoice } = require('../../services/invoice.service');
 const { createHdfcOrder, initiateUpiIntent, buildUpiIntentUri } = require('../payments/hdfc.service');
 
 // Helpers
@@ -366,6 +367,42 @@ exports.getOrderById = async (req, res, next) => {
       success: true,
       data: dto,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Download invoice PDF — GET /api/v1/user/orders/:orderId/invoice
+exports.downloadInvoice = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { orderId } = req.params;
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: { items: true },
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const isCod = (order.paymentMethod || '').toLowerCase() === 'cod';
+    const isPaid = order.paymentStatus === 'paid';
+
+    if (!isPaid && !isCod) {
+      return res.status(403).json({ success: false, message: 'Invoice is available only after payment is confirmed.' });
+    }
+
+    const filePath = getInvoiceFilePath(order.orderNumber);
+
+    if (!invoiceExists(order.orderNumber)) {
+      await generateAndSaveInvoice(order);
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${order.orderNumber}.pdf"`);
+    res.sendFile(filePath);
   } catch (error) {
     next(error);
   }
@@ -811,6 +848,8 @@ exports.checkout = async (req, res, next) => {
     });
     if (orderWithUserAndItems) {
       onOrderPlaced(orderWithUserAndItems);
+      const { generateInvoiceAsync } = require('../../services/invoice.service');
+      generateInvoiceAsync(orderWithUserAndItems);
     }
 
     res.status(201).json({

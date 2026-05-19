@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AccountLayout } from "@/components/account/AccountLayout";
 import { useOrders, useOrderDetail, useRequestReturn, useCancelOrder } from "@/hooks/use-user";
+import { useAuth } from "@/store/use-auth";
 import { formatPrice } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,9 +27,11 @@ import {
   ShoppingBag,
   X,
   XCircle,
+  FileDown,
 } from "lucide-react";
 import { Link } from "wouter";
 import { getMediaUrl } from "@/lib/utils";
+import { apiUrl } from "@/api/client";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -52,6 +55,33 @@ export default function Orders() {
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const requestReturn = useRequestReturn();
   const cancelOrder = useCancelOrder();
+  const [downloadingInvoice, setDownloadingInvoice] = useState<string | null>(null);
+
+  const handleDownloadInvoice = async (orderId: string, orderNumber: string) => {
+    setDownloadingInvoice(orderId);
+    try {
+      const token = useAuth.getState().accessToken;
+      const res = await fetch(
+        apiUrl(`user/orders/${orderId}/invoice`),
+        {
+          credentials: "include",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      if (!res.ok) throw new Error("Invoice not available");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${orderNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Invoice could not be downloaded. Please try again.");
+    } finally {
+      setDownloadingInvoice(null);
+    }
+  };
 
   const { data: orderDetail, isLoading: detailLoading } = useOrderDetail(selectedOrderId || "");
 
@@ -205,6 +235,23 @@ export default function Orders() {
                             >
                               <RotateCcw className="w-3.5 h-3.5 mr-1" />
                               Return
+                            </Button>
+                          )}
+                          {(order.paymentStatus === "paid" || (order.paymentMethod || "").toLowerCase() === "cod") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              disabled={downloadingInvoice === order.id}
+                              onClick={() => handleDownloadInvoice(order.id, order.orderNumber)}
+                              data-testid={`button-invoice-${order.id}`}
+                            >
+                              {downloadingInvoice === order.id ? (
+                                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                              ) : (
+                                <FileDown className="w-3.5 h-3.5 mr-1" />
+                              )}
+                              Invoice
                             </Button>
                           )}
                           <Button
@@ -400,6 +447,23 @@ export default function Orders() {
                   <p className="font-medium mb-1">Tracking Number</p>
                   <p className="font-mono text-muted-foreground">{orderDetail.trackingNumber}</p>
                 </div>
+              )}
+
+              {(orderDetail.paymentStatus === "paid" || (orderDetail.paymentMethod || "").toLowerCase() === "cod") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                  disabled={downloadingInvoice === orderDetail.id}
+                  onClick={() => handleDownloadInvoice(orderDetail.id, orderDetail.orderNumber)}
+                >
+                  {downloadingInvoice === orderDetail.id ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                  ) : (
+                    <FileDown className="w-3.5 h-3.5 mr-2" />
+                  )}
+                  Download Invoice (PDF)
+                </Button>
               )}
 
               {/* Payment Gateway Details — shown for HDFC UPI / Card / NB payments */}
