@@ -12,7 +12,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const logger = require('../utils/logger');
 
 const INVOICES_DIR = path.join(__dirname, '..', '..', 'uploads', 'invoices');
@@ -466,10 +466,29 @@ ${taxTypeBadge}
 
 // ─── PDF generation ───────────────────────────────────────────────────────────
 
+function findChromiumExecutable() {
+    const candidates = [
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/snap/bin/chromium',
+    ];
+    for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+    }
+    return null;
+}
+
 async function generateInvoicePdf(order) {
     const html = buildInvoiceHtml(order);
+    const executablePath = findChromiumExecutable();
+    if (!executablePath) {
+        throw new Error('Chromium not found. Install it with: sudo apt-get install -y chromium-browser');
+    }
     const browser = await puppeteer.launch({
         headless: true,
+        executablePath,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
     try {
