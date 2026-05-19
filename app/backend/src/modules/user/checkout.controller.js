@@ -17,7 +17,7 @@ const logger = require('../../utils/logger');
 const { verifyCodOtp, createAndSendCodOtp } = require('../../services/codOtp.service');
 const { onOrderPlaced } = require('../../services/orderEmail.service');
 const { generateInvoiceAsync } = require('../../services/invoice.service');
-const { createHdfcOrder, initiateUpiIntent, buildUpiIntentUri } = require('../payments/hdfc.service');
+const { createHdfcOrder, initiateUpiIntent, buildUpiIntentUri } = require('../payments/hdfc/hdfc.service');
 
 // ─── Shipping / Tax constants ─────────────────────────────────────────────────
 const TAX_RATE = 0.0;

@@ -1,6 +1,7 @@
-const { prisma, redisClient } = require('../../config/database');
-const logger = require('../../utils/logger');
-const { onOrderPlaced } = require('../../services/orderEmail.service');
+const { prisma, redisClient } = require('../../../config/database');
+const logger = require('../../../utils/logger');
+const { onOrderPlaced } = require('../../../services/orderEmail.service');
+const { generateInvoiceAsync } = require('../../../services/invoice.service');
 const { createHdfcOrder, initiateUpiIntent, buildUpiIntentUri, getHdfcOrderStatus } = require('./hdfc.service');
 
 const FRONTEND_URL = process.env.CUSTOMER_FRONTEND_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -159,6 +160,16 @@ exports.handleWebhook = async (req, res, next) => {
 
         // Map HDFC status to our order status
         if (hdfcStatus === 'CHARGED') {
+            // Duplicate entry validation — skip if already processed (webhook may fire more than once)
+            const alreadyProcessed =
+                hdfcPayment.order.status === 'PROCESSING' &&
+                hdfcPayment.order.paymentStatus === 'paid';
+
+            if (alreadyProcessed) {
+                logger.info(`HDFC webhook: order ${hdfcPayment.orderId} already PROCESSING — duplicate webhook ignored`);
+                return res.status(200).json({ received: true });
+            }
+
             await prisma.$transaction([
                 prisma.hdfcPayment.update({
                     where: { hdfcOrderId },
@@ -174,14 +185,15 @@ exports.handleWebhook = async (req, res, next) => {
                 }),
             ]);
 
-            // Clear cart
+            // Clear server-side cart
             if (hdfcPayment.order.userId) {
                 await redisClient.del(`cart:${hdfcPayment.order.userId}`);
             }
 
-            // Send order confirmation email
+            // Send order confirmation email and generate invoice (non-blocking)
             if (hdfcPayment.order) {
                 onOrderPlaced(hdfcPayment.order);
+                generateInvoiceAsync(hdfcPayment.order);
             }
 
             logger.info(`HDFC: Order ${hdfcPayment.orderId} paid and moved to PROCESSING`);
@@ -281,8 +293,9 @@ exports.checkPaymentStatus = async (req, res, next) => {
             // Clear the server-side cart
             await redisClient.del(`cart:${userId}`);
 
-            // Send order confirmation email (non-blocking)
+            // Send order confirmation email and generate invoice (non-blocking)
             onOrderPlaced(hdfcPayment.order);
+            generateInvoiceAsync(hdfcPayment.order);
 
             logger.info(`[HDFC] checkPaymentStatus: order ${orderId} marked PROCESSING (detected via polling)`);
         } else if (latestStatus && latestStatus !== hdfcPayment.status) {
@@ -378,6 +391,7 @@ exports.handleReturn = async (req, res, next) => {
             }
             if (hdfcPayment.order) {
                 onOrderPlaced(hdfcPayment.order);
+                generateInvoiceAsync(hdfcPayment.order);
             }
 
             logger.info(`[HDFC] return: order ${hdfcPayment.orderId} marked PROCESSING`);
