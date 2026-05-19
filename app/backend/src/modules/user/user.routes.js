@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('./user.controller');
+const checkoutController = require('./checkout.controller');
 const { protect } = require('../../middleware/authMiddleware');
 
 // All routes below require authentication
@@ -16,8 +17,8 @@ router.post('/change-password', userController.changePassword);
 
 // 3. Orders
 router.get('/orders', userController.getOrders);
-router.post('/orders/request-cod-otp', userController.requestCodOtp);
-router.post('/orders/checkout', userController.checkout);
+router.post('/orders/request-cod-otp', checkoutController.requestCodOtp);
+router.post('/orders/checkout', checkoutController.checkout);
 router.get('/orders/:orderId', userController.getOrderById);
 router.get('/orders/:orderId/invoice', userController.downloadInvoice);
 router.post('/orders/:orderId/cancel', userController.cancelOrder);
