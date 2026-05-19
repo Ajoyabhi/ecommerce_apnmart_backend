@@ -21,13 +21,32 @@ const path = require('path');
 const prisma = new PrismaClient();
 
 // ─── Order IDs provided by HDFC bank ────────────────────────────────────────
+// May 2026 bank testing IDs — provided by HDFC for transaction verification
 const DEFAULT_ORDER_IDS = [
-    'HMPAUFUUNCY9NHR',
-    'HMPAULGNCAM1TKM',
-    'HMPAUV5A0ASNZ1P',
-    'HMPAV12O948EFBS',
-    'HMPAV9STY4K9ASG',
-    'HMPAVEQBXTS7O9Q',
+    'HMPAW67WP42KCMI',
+    'HMPAWQT0LEGX9ZD',
+    'HMPAWXF939LCJ94',
+    'HMPAX851PV9HHJV',
+    'HMPB4KXPH28POHX',
+    'HMPB556W0W6NLQ3',
+    'HMPB5AQAD7Q36NV',
+    'HMPB5EDZ1BD2TGO',
+    'HMPC5SEE7ZVQBYA',
+    'HMPC61OE3K4J3QW',
+    'HMPC6EIKDHOKNB3',
+    'HMPC6JBL993NJHA',
+    'HMPC6THGWIFYIBI',
+    'HMPC7A4B8W38AIB',
+    'HMPC7FRSD110GCQ',
+    'HMPC6ZX5B5HXODI',
+    'HMPC743LMMVI0XT',
+    'HMPC7TK2JIMN867',
+    'HMPC7PMCW0O4M9R',
+    'HMPC7XBRUBDO18G',
+    'HMPC7YNA4UYYUDX',
+    'HMPC82UBRR2BIUN',
+    'HMPC89U8MVMZ5O6',
+    'HMPC8BF1KWZI7YW',
 ];
 
 // Allow passing IDs as CLI args: node hdfc-bank-report.js ID1 ID2 ...
@@ -50,37 +69,28 @@ function formatDate(date) {
 }
 
 function toCSV(rows) {
+    // Columns match the bank's Excel template exactly
     const headers = [
+        '#',
         'HDFC Order ID',
         'Our Order Number',
-        'Gateway Status',
-        'Transaction ID',
-        'Transaction UUID',
-        'Payment Status (DB)',
-        'Order Status',
-        'Payment Method',
-        'Amount (INR)',
-        'Times Stored in DB',
-        'Order Created At (IST)',
-        'Payment Last Updated (IST)',
-        'Products',
+        'Transaction status',
+        'Transaction amounts',
+        'Number of times each order ID is stored in database for each transaction',
+        'Timestamp of each transaction',
+        'Details of products associated with each order id (Product Name, Product Type etc.)',
     ];
 
     const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
-    const csvRows = rows.map(r => [
+    const csvRows = rows.map((r, i) => [
+        i + 1,
         r.hdfcOrderId,
         r.orderNumber,
         r.gatewayStatus,
-        r.txnId ?? '',
-        r.txnUuid ?? '',
-        r.paymentStatus,
-        r.orderStatus,
-        r.paymentMethod ?? '',
-        r.amount,
+        `Rs. ${r.amount}`,
         r.timesStoredInDb,
         r.orderCreatedAt,
-        r.paymentUpdatedAt,
         r.products,
     ].map(escape).join(','));
 
