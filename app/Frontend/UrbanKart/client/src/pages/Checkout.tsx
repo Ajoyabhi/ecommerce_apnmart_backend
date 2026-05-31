@@ -90,7 +90,7 @@ function usePincodeAPI() {
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+        const res = await fetch(`/api/v1/pincode/${pincode}`);
         const data: PostalPinCodeResponse[] = await res.json();
 
         if (data?.[0]?.Status === "Success" && data[0].PostOffice?.length) {

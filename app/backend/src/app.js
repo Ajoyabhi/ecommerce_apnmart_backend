@@ -86,6 +86,7 @@ const adminRoutes = require('./modules/admin/admin.routes');
 const contentRoutes = require('./modules/content/content.routes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const userRoutes = require('./modules/user/user.routes');
+const pincodeRoutes = require('./routes/pincodeRoutes');
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/categories', categoryRoutes);
@@ -96,6 +97,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/admin', uploadRoutes);
+app.use('/api/v1/pincode', pincodeRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
