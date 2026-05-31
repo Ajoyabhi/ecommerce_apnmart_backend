@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/store/use-cart";
 import { useAuth } from "@/store/use-auth";
-import { fetchApi } from "@/api/client";
+import { fetchApi, getApiBaseUrl } from "@/api/client";
 import { formatPrice, getMediaUrl } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
@@ -90,7 +90,7 @@ function usePincodeAPI() {
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/v1/pincode/${pincode}`);
+        const res = await fetch(`${getApiBaseUrl()}/api/v1/pincode/${pincode}`);
         const data: PostalPinCodeResponse[] = await res.json();
 
         if (data?.[0]?.Status === "Success" && data[0].PostOffice?.length) {
