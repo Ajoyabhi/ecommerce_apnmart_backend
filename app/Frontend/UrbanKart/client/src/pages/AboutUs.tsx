@@ -91,6 +91,8 @@ export default function AboutUs() {
         <div className="rounded-xl border border-border overflow-hidden">
           {[
             ["Legal Entity",      "Shrivatsam Projects Private Limited"],
+            ["CIN",               "U46593UP2023PTC185334"],
+            ["GSTIN",             "09ABLCS2165H2Z0"],
             ["Brand Name",        "Anpamart"],
             ["Business Type",     "Private Limited Company"],
             ["Industry",          "E-Commerce — Fashion, Lifestyle & Beauty"],

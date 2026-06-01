@@ -100,8 +100,9 @@ export default function TermsAndConditions() {
         <section>
           <h2 className="font-semibold text-foreground mb-2">8. Governing Law</h2>
           <p>
-            These Terms and Conditions and any separate agreements whereby we provide you Services shall be governed by 
-            and construed in accordance with the applicable laws of our jurisdiction.
+            These Terms and Conditions and any separate agreements whereby we provide you Services shall be governed by
+            and construed in accordance with the laws of India. Any disputes arising out of or in connection with
+            these Terms shall be subject to the exclusive jurisdiction of the courts at Gorakhpur, Uttar Pradesh, India.
           </p>
         </section>
 

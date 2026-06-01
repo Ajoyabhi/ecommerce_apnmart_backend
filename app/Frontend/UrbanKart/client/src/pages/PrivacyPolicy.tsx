@@ -110,7 +110,28 @@ export default function PrivacyPolicy() {
 
         <section>
           <h2 className="font-semibold text-foreground mb-2">
-            8. Contact Us
+            8. Grievance Officer
+          </h2>
+          <p className="mb-2">
+            In accordance with the Information Technology Act 2000 and the IT (Intermediary Guidelines and
+            Digital Media Ethics Code) Rules 2021, the details of the Grievance Officer are provided below:
+          </p>
+          <ul className="space-y-1">
+            <li><span className="font-medium text-foreground">Name:</span> Grievance Officer, Shrivatsam Projects Private Limited</li>
+            <li>
+              <span className="font-medium text-foreground">Email:</span>{" "}
+              <a href="mailto:grievance@anpamart.com" className="text-primary hover:underline">
+                grievance@anpamart.com
+              </a>
+            </li>
+            <li><span className="font-medium text-foreground">Address:</span> First Floor, 80A Indira Nagar, Taramandal Road, R/O Bilandpur, Taramandal, Gorakhpur, Uttar Pradesh — 273001</li>
+            <li><span className="font-medium text-foreground">Response time:</span> Complaints will be acknowledged within 24 hours and resolved within 15 days of receipt.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 className="font-semibold text-foreground mb-2">
+            9. Contact Us
           </h2>
           <p>
             If you have questions about this Privacy Policy or our data

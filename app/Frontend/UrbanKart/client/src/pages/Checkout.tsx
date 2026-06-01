@@ -355,6 +355,7 @@ export default function Checkout() {
   const [sameAsBilling, setSameAsBilling] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState("cod");
   const [placing, setPlacing] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<PlaceOrderResponse | null>(null);
 
   const [codOtpSent, setCodOtpSent] = useState(false);
@@ -924,11 +925,26 @@ export default function Checkout() {
                     </div>
                   </div>
 
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Checkbox
+                      id="agree-terms"
+                      checked={agreedToTerms}
+                      onCheckedChange={(v) => setAgreedToTerms(!!v)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <label htmlFor="agree-terms" className="leading-relaxed cursor-pointer">
+                      I have read and agree to the{" "}
+                      <Link href="/terms-and-conditions" className="text-primary hover:underline">Terms &amp; Conditions</Link>,{" "}
+                      <Link href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>, and{" "}
+                      <Link href="/refund-cancellation-policy" className="text-primary hover:underline">Refund Policy</Link>.
+                    </label>
+                  </div>
+
                   <Button
                     className="w-full py-6 text-base font-bold"
                     size="lg"
                     onClick={handlePlaceOrder}
-                    disabled={placing || (paymentMethod === "cod" && (!codOtpSent || codOtpValue.replace(/\D/g, "").length !== 6))}
+                    disabled={placing || !agreedToTerms || (paymentMethod === "cod" && (!codOtpSent || codOtpValue.replace(/\D/g, "").length !== 6))}
                     data-testid="button-place-order"
                   >
                     {placing ? (

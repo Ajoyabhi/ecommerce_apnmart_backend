@@ -153,7 +153,7 @@ export function Footer() {
         </div>
         
         <div className="border-t border-border mt-16 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© 2025 Anpamart by Shrivatsam Projects Private Limited. All rights reserved.</p>
+          <p>© 2025–2026 Anpamart by Shrivatsam Projects Private Limited. All rights reserved.</p>
           <div className="flex gap-6 flex-wrap justify-center md:justify-end">
             <Link href="/about-us" className="hover:text-primary">
               About Us

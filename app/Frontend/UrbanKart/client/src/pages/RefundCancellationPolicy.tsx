@@ -25,7 +25,7 @@ export default function RefundCancellationPolicy() {
             We offer refunds for products returned within 14 days of delivery. To be eligible for a return and refund, your item must be unused, in the same condition that you received it, and in its original packaging.
           </p>
           <p className="mt-2">
-            Once we receive and inspect your returned item, we will notify you of the approval or rejection of your refund. If approved, your refund will be processed, and a credit will automatically be applied to your credit card or original method of payment, within a certain amount of days.
+            Once we receive and inspect your returned item, we will notify you of the approval or rejection of your refund. If approved, your refund will be processed within <strong>5–7 business days</strong>, and a credit will automatically be applied to your original method of payment.
           </p>
         </section>
 
