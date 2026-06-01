@@ -59,7 +59,7 @@ export default function AboutUs() {
       </section>
 
       {/* Mission */}
-      <section className="mb-14 bg-muted/40 rounded-2xl p-8 border border-border">
+      <section id="mission" className="mb-14 bg-muted/40 rounded-2xl p-8 border border-border">
         <h2 className="font-display font-bold text-xl md:text-2xl mb-3">Our Mission</h2>
         <p className="text-muted-foreground text-sm md:text-base leading-relaxed">
           To be India's most trusted fashion destination — where every customer finds something

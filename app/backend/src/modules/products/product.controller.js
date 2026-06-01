@@ -238,14 +238,32 @@ exports.getProducts = async (req, res, next) => {
         if (new_arrivals !== undefined && new_arrivals !== '') where.isNewArrival = new_arrivals === 'true';
 
         // Site-wide text search: name, slug, SKU, brand (case-insensitive)
+        // Multi-word queries (e.g. "jeans men") are split into tokens and each token
+        // must match at least one of the searchable fields (AND across tokens).
         const searchTerm = typeof q === 'string' ? q.trim() : '';
         if (searchTerm) {
-            where.OR = [
-                { name: { contains: searchTerm, mode: 'insensitive' } },
-                { slug: { contains: searchTerm, mode: 'insensitive' } },
-                { sku: { contains: searchTerm, mode: 'insensitive' } },
-                { brand: { contains: searchTerm, mode: 'insensitive' } }
-            ];
+            const tokens = searchTerm.split(/\s+/).filter(Boolean);
+            if (tokens.length === 1) {
+                where.OR = [
+                    { name:  { contains: tokens[0], mode: 'insensitive' } },
+                    { slug:  { contains: tokens[0], mode: 'insensitive' } },
+                    { sku:   { contains: tokens[0], mode: 'insensitive' } },
+                    { brand: { contains: tokens[0], mode: 'insensitive' } },
+                ];
+            } else {
+                // Every token must match somewhere in name | slug | sku | brand
+                where.AND = [
+                    ...(where.AND || []),
+                    ...tokens.map((token) => ({
+                        OR: [
+                            { name:  { contains: token, mode: 'insensitive' } },
+                            { slug:  { contains: token, mode: 'insensitive' } },
+                            { sku:   { contains: token, mode: 'insensitive' } },
+                            { brand: { contains: token, mode: 'insensitive' } },
+                        ],
+                    })),
+                ];
+            }
         }
 
         const categorySlug = sub_subcategory || subcategory || category;
