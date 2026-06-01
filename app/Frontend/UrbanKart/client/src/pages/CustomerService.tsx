@@ -25,10 +25,32 @@ export default function CustomerService() {
               </a>
             </li>
             <li>
+              <span className="font-medium text-foreground">Phone:</span>{" "}
+              <a
+                href="tel:+919616060593"
+                className="text-primary hover:underline"
+              >
+                +91 96160 60593
+              </a>
+            </li>
+            <li>
               <span className="font-medium text-foreground">Support hours:</span>{" "}
               Monday – Saturday, 10:00 AM – 7:00 PM (IST)
             </li>
           </ul>
+        </section>
+
+        <section>
+          <h2 className="font-semibold text-foreground mb-2">
+            Registered Address
+          </h2>
+          <address className="not-italic space-y-0.5">
+            <p>Shrivatsam Projects Private Limited</p>
+            <p>First Floor, 80A Indira Nagar</p>
+            <p>Taramandal Road, R/O Bilandpur</p>
+            <p>Taramandal, Gorakhpur</p>
+            <p>Uttar Pradesh — 273001</p>
+          </address>
         </section>
 
         <section>
