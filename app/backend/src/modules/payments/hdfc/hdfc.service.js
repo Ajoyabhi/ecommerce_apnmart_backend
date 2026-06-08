@@ -15,7 +15,7 @@ function commonHeaders(customerId) {
         Authorization: authHeader(),
         'x-merchantid': process.env.HDFC_MERCHANT_ID,
         'x-routing-id': customerId,
-        'x-resellerid': 'hdfc_reseller',
+        'x-resellerid': process.env.HDFC_RESELLER_ID || 'hdfc_reseller',
     };
 }
 
@@ -67,7 +67,7 @@ async function initiateUpiIntent({ hdfcOrderId, customerId }) {
         headers: {
             Authorization: authHeader(),
             'x-merchantid': process.env.HDFC_MERCHANT_ID,
-            'x-resellerid': 'hdfc_reseller',
+            'x-resellerid': process.env.HDFC_RESELLER_ID || 'hdfc_reseller',
             'Content-Type': 'application/x-www-form-urlencoded',
         },
     });
