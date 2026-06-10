@@ -311,14 +311,16 @@ exports.checkPaymentStatus = async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            orderId,
-            orderNumber: hdfcPayment.order.orderNumber,
-            hdfcOrderId: hdfcPayment.hdfcOrderId,
-            amount: Number(hdfcPayment.order.total),
-            paymentMethod: hdfcPayment.order.paymentMethod,
-            status: latestStatus || hdfcPayment.status,
-            paid: isPaid,
-            hdfcRawResponse: hdfcData,
+            data: {
+                orderId,
+                orderNumber: hdfcPayment.order.orderNumber,
+                hdfcOrderId: hdfcPayment.hdfcOrderId,
+                amount: Number(hdfcPayment.order.total),
+                paymentMethod: hdfcPayment.order.paymentMethod,
+                status: latestStatus || hdfcPayment.status,
+                paid: isPaid,
+                hdfcRawResponse: hdfcData,
+            },
         });
     } catch (error) {
         logger.error(`HDFC status check error: ${error.message}`);
