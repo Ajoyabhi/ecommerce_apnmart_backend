@@ -48,7 +48,7 @@ exports.initiateAccuzpayPayin = async (req, res, next) => {
       },
     });
 
-    const returnUrl = `${process.env.API_BASE_URL}/api/v1/payments/hdfc/pg-notify`;
+    const returnUrl = `${process.env.BACKEND_PUBLIC_URL}/api/v1/payments/hdfc/pg-notify`;
 
     await createHdfcOrder({
       hdfcOrderId,
