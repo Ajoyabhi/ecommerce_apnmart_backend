@@ -138,14 +138,27 @@ exports.initiateUpiPayment = async (req, res, next) => {
  */
 exports.handleWebhook = async (req, res, next) => {
     try {
+        // ── Verify HDFC Basic Auth (configured in HDFC Dashboard → Settings → Webhook) ──
+        const webhookUser = process.env.HDFC_WEBHOOK_USERNAME;
+        const webhookPass = process.env.HDFC_WEBHOOK_PASSWORD;
+        if (webhookUser && webhookPass) {
+            const authHeader = req.headers['authorization'] || '';
+            const expected   = `Basic ${Buffer.from(`${webhookUser}:${webhookPass}`).toString('base64')}`;
+            if (authHeader !== expected) {
+                logger.warn('[HDFC] webhook: invalid Basic Auth — request rejected');
+                return res.status(200).json({ received: true }); // always 200 so HDFC doesn't retry bad requests
+            }
+        }
+
         const payload = req.body;
-        logger.info(`HDFC webhook received: ${JSON.stringify(payload)}`);
+        logger.info({ payload }, '[HDFC] webhook received');
 
         const hdfcOrderId = payload.order_id || payload.id;
-        const hdfcStatus = payload.status;
+        const hdfcStatus  = payload.status;
 
         if (!hdfcOrderId) {
-            return res.status(400).json({ success: false, message: 'Missing order_id in webhook payload' });
+            logger.warn('[HDFC] webhook: missing order_id in payload');
+            return res.status(200).json({ received: true }); // always 200 to HDFC
         }
 
         const hdfcPayment = await prisma.hdfcPayment.findUnique({

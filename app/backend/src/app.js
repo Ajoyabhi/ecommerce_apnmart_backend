@@ -46,9 +46,14 @@ app.use(
     })
 );
 
-// Single CORS middleware — open policy for HDFC return URL, strict for everything else
+// Single CORS middleware — open policy for HDFC server-to-server callbacks, strict for everything else
+const HDFC_CALLBACK_PATHS = [
+    '/api/v1/payments/hdfc/return',    // card/netbanking return
+    '/api/v1/payments/hdfc/pg-notify', // UPI accuzpay callback
+    '/api/v1/payments/hdfc/webhook',   // generic webhook
+];
 app.use((req, res, next) => {
-    if (req.path === '/api/v1/payments/hdfc/return') {
+    if (HDFC_CALLBACK_PATHS.includes(req.path)) {
         return cors({ origin: true, credentials: false })(req, res, next);
     }
     return cors(corsOptions)(req, res, next);
