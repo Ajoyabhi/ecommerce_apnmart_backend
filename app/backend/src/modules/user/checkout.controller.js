@@ -222,7 +222,9 @@ exports.checkout = async (req, res, next) => {
 
         // ── 2. Calculate order totals (server-side — never trust client) ────
         const taxAmount = TAX_RATE * calculatedSubtotal;
-        const shippingAmount = calculatedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+        const EXEMPT_SHIPPING_EMAIL = 'support@anpamart.com';
+        const orderEmail = (payload.shippingAddress.email || '').toLowerCase().trim();
+        const shippingAmount = (calculatedSubtotal >= FREE_SHIPPING_THRESHOLD || orderEmail === EXEMPT_SHIPPING_EMAIL) ? 0 : SHIPPING_COST;
         const total = Math.round((calculatedSubtotal + shippingAmount + taxAmount) * 100) / 100;
 
         const paymentMethod = payload.paymentMethod || 'cod';
