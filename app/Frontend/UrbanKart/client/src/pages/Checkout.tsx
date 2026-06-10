@@ -586,7 +586,9 @@ export default function Checkout() {
 
   const subtotal = getCartTotal();
   const tax = 0;
-  const shippingCost = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
+  const EXEMPT_SHIPPING_EMAIL = 'support@anpamart.com';
+  const isShippingExempt = shippingAddress.email.toLowerCase().trim() === EXEMPT_SHIPPING_EMAIL;
+  const shippingCost = (subtotal >= FREE_SHIPPING_THRESHOLD || isShippingExempt) ? 0 : FLAT_SHIPPING_COST;
   const total = +(subtotal + shippingCost).toFixed(2);
 
   const handlePlaceOrder = async () => {
