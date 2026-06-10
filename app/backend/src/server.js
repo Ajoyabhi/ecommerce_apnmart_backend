@@ -7,6 +7,16 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     try {
+        // ── Env sanity checks ────────────────────────────────────────────────
+        const backendPublicUrl = process.env.BACKEND_PUBLIC_URL || '';
+        if (!backendPublicUrl || backendPublicUrl.includes('localhost')) {
+            logger.warn(
+                '[CONFIG] BACKEND_PUBLIC_URL is not set or points to localhost. ' +
+                'HDFC card/net-banking return URLs and Google OAuth callbacks will break in production — ' +
+                'set BACKEND_PUBLIC_URL to the public backend URL (e.g. https://api.yourdomain.com).'
+            );
+        }
+
         // Connect to Databases
         await connectMongoDB();
         await connectRedis();

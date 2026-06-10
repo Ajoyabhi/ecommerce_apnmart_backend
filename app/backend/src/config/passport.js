@@ -12,7 +12,7 @@ if (googleClientID && googleClientSecret) {
             {
                 clientID: googleClientID,
                 clientSecret: googleClientSecret,
-                callbackURL: `${process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5001}`}/api/v1/auth/google/callback`,
+                callbackURL: `${process.env.BACKEND_PUBLIC_URL || `http://localhost:${process.env.PORT || 5001}`}/api/v1/auth/google/callback`,
             },
             async (accessToken, refreshToken, profile, done) => {
                 try {

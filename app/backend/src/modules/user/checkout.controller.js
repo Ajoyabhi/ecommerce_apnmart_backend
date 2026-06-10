@@ -420,7 +420,7 @@ exports.checkout = async (req, res, next) => {
                     customerId:    userId,
                     customerEmail: user.email,
                     customerPhone,
-                    returnUrl: `${process.env.API_BASE_URL || 'http://localhost:5009'}/api/v1/payments/hdfc/return`,
+                    returnUrl: `${process.env.BACKEND_PUBLIC_URL || 'http://localhost:5009'}/api/v1/payments/hdfc/return`,
                 });
 
                 const redirectUrl = hdfcOrderData.payment_links?.web;
