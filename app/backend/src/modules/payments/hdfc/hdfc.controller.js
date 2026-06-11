@@ -138,6 +138,20 @@ exports.initiateUpiPayment = async (req, res, next) => {
  */
 exports.handleWebhook = async (req, res, next) => {
     try {
+        // ── Log every hit immediately — before any processing ────────────────
+        logger.info({
+            event:   '[HDFC] WEBHOOK HIT',
+            method:  req.method,
+            path:    req.path,
+            ip:      req.ip,
+            headers: {
+                authorization:   req.headers['authorization'] ? '***present***' : 'MISSING',
+                'content-type':  req.headers['content-type'],
+                'x-merchantid':  req.headers['x-merchantid'],
+            },
+            body: req.body,
+        }, '[HDFC] ========== WEBHOOK RECEIVED ==========');
+
         // ── Verify HDFC Basic Auth (configured in HDFC Dashboard → Settings → Webhook) ──
         const webhookUser = process.env.HDFC_WEBHOOK_USERNAME;
         const webhookPass = process.env.HDFC_WEBHOOK_PASSWORD;
