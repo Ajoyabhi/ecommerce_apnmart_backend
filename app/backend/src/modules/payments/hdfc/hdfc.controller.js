@@ -175,13 +175,71 @@ exports.handleWebhook = async (req, res, next) => {
             return res.status(200).json({ received: true }); // always 200 to HDFC
         }
 
+        const TERMINAL_STATUSES  = ['CHARGED', 'AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'];
+        const FAILURE_STATUSES   = ['AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'];
+
+        // ── Try AccuzpayPayment first (external UPI / payment-gateway flow) ──
+        const accuzpayPayment = await prisma.accuzpayPayment.findUnique({ where: { hdfcOrderId } });
+        if (accuzpayPayment) {
+            logger.info({ hdfcOrderId, hdfcStatus }, '[HDFC] webhook → routing to AccuzpayPayment handler');
+
+            if (accuzpayPayment.status === 'FORWARDED') {
+                logger.info(`[HDFC] webhook: accuzpay ${hdfcOrderId} already forwarded — skipping`);
+                return res.status(200).json({ received: true });
+            }
+
+            // Verify live status server-side
+            let liveStatus = hdfcStatus;
+            try {
+                const hdfcData = await getHdfcOrderStatus(hdfcOrderId, accuzpayPayment.customerId);
+                liveStatus = hdfcData.status || hdfcStatus;
+                logger.info({ hdfcOrderId, liveStatus }, '[HDFC] webhook: accuzpay server-side status verified');
+            } catch (err) {
+                logger.error(`[HDFC] webhook: accuzpay status check failed — ${err.message}, using payload status`);
+            }
+
+            if (!TERMINAL_STATUSES.includes(liveStatus)) {
+                await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: liveStatus } });
+                logger.info(`[HDFC] webhook: accuzpay intermediate status ${liveStatus} — not forwarding yet`);
+                return res.status(200).json({ received: true });
+            }
+
+            const accuzpayStatus = liveStatus === 'CHARGED' ? 'TXN' : 'FAILED';
+            await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: liveStatus } });
+
+            // Forward to accuzpay callback URL
+            try {
+                const axios = require('axios');
+                await axios.post(
+                    accuzpayPayment.callbackUrl,
+                    {
+                        reference_id: accuzpayPayment.referenceId,
+                        status:       accuzpayStatus,
+                        utr:          payload.txn_id || null,
+                        amount:       parseFloat(accuzpayPayment.amount),
+                    },
+                    {
+                        headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
+                        timeout: 10000,
+                    }
+                );
+                await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: 'FORWARDED' } });
+                logger.info(`[HDFC] webhook: accuzpay forwarded — referenceId=${accuzpayPayment.referenceId} status=${accuzpayStatus}`);
+            } catch (fwdErr) {
+                logger.error(`[HDFC] webhook: accuzpay forward failed — ${fwdErr.message}`);
+            }
+
+            return res.status(200).json({ received: true });
+        }
+
+        // ── Fall through to HdfcPayment (store checkout orders) ──────────────
         const hdfcPayment = await prisma.hdfcPayment.findUnique({
             where: { hdfcOrderId },
             include: { order: { include: { user: true, items: true } } },
         });
 
         if (!hdfcPayment) {
-            logger.warn(`HDFC webhook: no HdfcPayment found for hdfcOrderId=${hdfcOrderId}`);
+            logger.warn(`[HDFC] webhook: no HdfcPayment or AccuzpayPayment found for hdfcOrderId=${hdfcOrderId}`);
             return res.status(200).json({ received: true });
         }
 
@@ -224,7 +282,7 @@ exports.handleWebhook = async (req, res, next) => {
             }
 
             logger.info(`HDFC: Order ${hdfcPayment.orderId} paid and moved to PROCESSING`);
-        } else if (['AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'].includes(hdfcStatus)) {
+        } else if (FAILURE_STATUSES.includes(hdfcStatus)) {
             await prisma.$transaction([
                 prisma.hdfcPayment.update({
                     where: { hdfcOrderId },
