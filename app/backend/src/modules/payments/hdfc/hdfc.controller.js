@@ -97,7 +97,7 @@ exports.initiateUpiPayment = async (req, res, next) => {
             customerId: userId,
             customerEmail: user.email,
             customerPhone: user.phone || '',
-            returnUrl: `${process.env.CUSTOMER_FRONTEND_URL}/payment/hdfc/callback`,
+            returnUrl: `${process.env.BACKEND_PUBLIC_URL}/api/v1/payments/hdfc/return`,
         });
 
         // 5. Initiate UPI intent — get sdk_params
