@@ -167,15 +167,22 @@ exports.handleWebhook = async (req, res, next) => {
         const payload = req.body;
         logger.info({ payload }, '[HDFC] webhook received');
 
-        // HDFC V2 webhook body structure:
-        // { id, event_name, content: { txn: { order_id, status, txn_id, txn_amount, payment_gateway_response: { rrn } } } }
-        // Older / flat structure may have payload.order_id and payload.status at top level — support both.
-        const txnContent  = payload.content?.txn || {};
-        const hdfcOrderId = txnContent.order_id  || payload.order_id || payload.id;
-        const hdfcStatus  = txnContent.status     || payload.status;
-        const hdfcTxnId   = txnContent.txn_id     || payload.txn_id  || null;
-        const hdfcUtr     = txnContent.payment_gateway_response?.rrn || payload.utr || null;
-        const hdfcAmount  = txnContent.txn_amount  || txnContent.net_amount || payload.amount || null;
+        // HDFC sends two different webhook shapes:
+        // TXN_CHARGED    → content.txn.order_id, content.txn.status, content.txn.payment_gateway_response.rrn
+        // ORDER_SUCCEEDED → content.order.order_id, content.order.status, content.order.txn_detail.*, content.order.payment_gateway_response.rrn
+        // Flat fallback   → payload.order_id, payload.status (older integrations)
+        const txnContent   = payload.content?.txn   || {};
+        const orderContent = payload.content?.order || {};
+        // Prefer txn, fall back to order, then flat
+        const hdfcOrderId = txnContent.order_id   || orderContent.order_id   || payload.order_id || null;
+        const hdfcStatus  = txnContent.status      || orderContent.status     || payload.status   || null;
+        const hdfcTxnId   = txnContent.txn_id      || orderContent.txn_id     || orderContent.txn_detail?.txn_id   || payload.txn_id  || null;
+        const hdfcUtr     = txnContent.payment_gateway_response?.rrn
+                         || orderContent.payment_gateway_response?.rrn
+                         || payload.utr || null;
+        const hdfcAmount  = txnContent.txn_amount  || txnContent.net_amount
+                         || orderContent.amount     || orderContent.txn_detail?.txn_amount
+                         || payload.amount || null;
 
         logger.info({ hdfcOrderId, hdfcStatus, hdfcTxnId, hdfcUtr, hdfcAmount }, '[HDFC] webhook: extracted fields');
 
