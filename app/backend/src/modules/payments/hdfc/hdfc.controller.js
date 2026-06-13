@@ -167,8 +167,17 @@ exports.handleWebhook = async (req, res, next) => {
         const payload = req.body;
         logger.info({ payload }, '[HDFC] webhook received');
 
-        const hdfcOrderId = payload.order_id || payload.id;
-        const hdfcStatus  = payload.status;
+        // HDFC V2 webhook body structure:
+        // { id, event_name, content: { txn: { order_id, status, txn_id, txn_amount, payment_gateway_response: { rrn } } } }
+        // Older / flat structure may have payload.order_id and payload.status at top level — support both.
+        const txnContent  = payload.content?.txn || {};
+        const hdfcOrderId = txnContent.order_id  || payload.order_id || payload.id;
+        const hdfcStatus  = txnContent.status     || payload.status;
+        const hdfcTxnId   = txnContent.txn_id     || payload.txn_id  || null;
+        const hdfcUtr     = txnContent.payment_gateway_response?.rrn || payload.utr || null;
+        const hdfcAmount  = txnContent.txn_amount  || txnContent.net_amount || payload.amount || null;
+
+        logger.info({ hdfcOrderId, hdfcStatus, hdfcTxnId, hdfcUtr, hdfcAmount }, '[HDFC] webhook: extracted fields');
 
         if (!hdfcOrderId) {
             logger.warn('[HDFC] webhook: missing order_id in payload');
@@ -207,24 +216,27 @@ exports.handleWebhook = async (req, res, next) => {
             const accuzpayStatus = liveStatus === 'CHARGED' ? 'TXN' : 'FAILED';
             await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: liveStatus } });
 
-            // Forward to accuzpay callback URL
+            // Forward to PayVex/Accuzpay callback URL
+            // PayVex hdfcCallback expects: POST { reference_id, status, utr, amount } + header x-api-key
             try {
                 const axios = require('axios');
+                const callbackPayload = {
+                    reference_id: accuzpayPayment.referenceId,
+                    status:       accuzpayStatus,      // 'TXN' (success) or 'FAILED'
+                    utr:          hdfcUtr || hdfcTxnId || null,  // RRN preferred, fallback txn_id
+                    amount:       parseFloat(accuzpayPayment.amount),
+                };
+                logger.info({ callbackUrl: accuzpayPayment.callbackUrl, callbackPayload }, '[HDFC] webhook: forwarding to PayVex');
                 await axios.post(
                     accuzpayPayment.callbackUrl,
-                    {
-                        reference_id: accuzpayPayment.referenceId,
-                        status:       accuzpayStatus,
-                        utr:          payload.txn_id || null,
-                        amount:       parseFloat(accuzpayPayment.amount),
-                    },
+                    callbackPayload,
                     {
                         headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
                         timeout: 10000,
                     }
                 );
-                await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: 'FORWARDED' } });
-                logger.info(`[HDFC] webhook: accuzpay forwarded — referenceId=${accuzpayPayment.referenceId} status=${accuzpayStatus}`);
+                await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: 'FORWARDED', forwardedAt: new Date() } });
+                logger.info(`[HDFC] webhook: accuzpay forwarded ✅ — referenceId=${accuzpayPayment.referenceId} status=${accuzpayStatus} utr=${hdfcUtr}`);
             } catch (fwdErr) {
                 logger.error(`[HDFC] webhook: accuzpay forward failed — ${fwdErr.message}`);
             }
@@ -258,7 +270,7 @@ exports.handleWebhook = async (req, res, next) => {
             await prisma.$transaction([
                 prisma.hdfcPayment.update({
                     where: { hdfcOrderId },
-                    data: { status: hdfcStatus, txnId: payload.txn_id || hdfcPayment.txnId },
+                    data: { status: hdfcStatus, txnId: hdfcTxnId || hdfcPayment.txnId },
                 }),
                 prisma.order.update({
                     where: { id: hdfcPayment.orderId },

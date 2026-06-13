@@ -19,10 +19,18 @@ function generateHdfcOrderId() {
 // ─── 1. Initiate payin from accuzpay ─────────────────────────────────────────
 exports.initiateAccuzpayPayin = async (req, res, next) => {
   try {
-    const { reference_id, amount, name, email, phone, customerId, callback_url, address } = req.body;
+    const { reference_id, amount, name, email, phone, customerId, address } = req.body;
 
-    if (!reference_id || !amount || !email || !customerId || !callback_url) {
-      return res.status(400).json({ success: false, message: 'Missing required fields: reference_id, amount, email, customerId, callback_url' });
+    // callback_url is fixed — configured once in ACCUZPAY_CALLBACK_URL env var,
+    // not passed per-request (it's always https://dashboard.accuzpay.in/api/payments/hdfc/callback)
+    const callback_url = process.env.ACCUZPAY_CALLBACK_URL;
+    if (!callback_url) {
+      logger.error('[HDFC-ACCUZPAY] ACCUZPAY_CALLBACK_URL not set in environment');
+      return res.status(500).json({ success: false, message: 'Payment gateway misconfigured — callback URL missing' });
+    }
+
+    if (!reference_id || !amount || !email || !customerId) {
+      return res.status(400).json({ success: false, message: 'Missing required fields: reference_id, amount, email, customerId' });
     }
 
     const existing = await prisma.accuzpayPayment.findUnique({ where: { referenceId: reference_id } });
