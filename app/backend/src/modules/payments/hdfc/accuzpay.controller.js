@@ -161,7 +161,55 @@ exports.handlePgNotify = async (req, res, next) => {
   }
 };
 
-// ─── 3. List accuzpay transactions ───────────────────────────────────────────
+// ─── 3. Transaction status check — called by accuzpay to poll payment status ──
+exports.checkAccuzpayTransaction = async (req, res, next) => {
+  try {
+    const reference_id = req.query.reference_id || req.body.reference_id;
+
+    if (!reference_id) {
+      return res.status(400).json({ success: false, message: 'reference_id is required' });
+    }
+
+    const payment = await prisma.accuzpayPayment.findUnique({ where: { referenceId: reference_id } });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    // Fetch live status from HDFC
+    let liveStatus = payment.status;
+    let hdfcData   = null;
+    try {
+      hdfcData   = await getHdfcOrderStatus(payment.hdfcOrderId, payment.customerId);
+      liveStatus = hdfcData.status || liveStatus;
+      logger.info({ reference_id, liveStatus }, '[HDFC-ACCUZPAY] checkTransaction live status');
+    } catch (err) {
+      logger.warn(`[HDFC-ACCUZPAY] checkTransaction: HDFC status fetch failed — using DB status. ${err.message}`);
+    }
+
+    // Sync DB if status changed and is terminal
+    const terminalStatuses = ['CHARGED', 'AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED', 'FORWARDED'];
+    if (liveStatus !== payment.status && terminalStatuses.includes(liveStatus)) {
+      await prisma.accuzpayPayment.update({ where: { id: payment.id }, data: { status: liveStatus } });
+    }
+
+    const accuzpayStatus = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? 'TXN' : liveStatus;
+
+    return res.status(200).json({
+      success:      true,
+      reference_id: payment.referenceId,
+      status:       accuzpayStatus,
+      hdfc_status:  liveStatus,
+      amount:       parseFloat(payment.amount),
+      utr:          hdfcData?.txn_id || null,
+      hdfcOrderId:  payment.hdfcOrderId,
+    });
+  } catch (error) {
+    logger.error(`[HDFC-ACCUZPAY] checkTransaction error: ${error.message}`);
+    next(error);
+  }
+};
+
+// ─── 5. List accuzpay transactions ───────────────────────────────────────────
 exports.listAccuzpayTransactions = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status, startDate, endDate, search } = req.query;

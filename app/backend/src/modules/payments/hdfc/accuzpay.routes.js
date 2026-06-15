@@ -9,6 +9,9 @@ router.post('/pg-initiate', accuzpayAuth, ctrl.initiateAccuzpayPayin);
 // HDFC payment notification (return_url POST) — no auth, HDFC posts directly
 router.post('/pg-notify', ctrl.handlePgNotify);
 
+// Transaction status check — called by accuzpay, secured with shared API key
+router.get('/pg-check', accuzpayAuth, ctrl.checkAccuzpayTransaction);
+
 // Transaction management — called by ecommerce admin UI, secured with admin JWT
 router.get('/accuzpay/transactions',              protect, ctrl.listAccuzpayTransactions);
 router.get('/accuzpay/transactions/:id',          protect, ctrl.getAccuzpayTransaction);
