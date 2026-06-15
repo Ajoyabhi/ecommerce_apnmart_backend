@@ -361,6 +361,7 @@ exports.checkPaymentStatus = async (req, res, next) => {
 
         // Fetch live status from HDFC — log full response for bank verification records
         const hdfcData = await getHdfcOrderStatus(hdfcPayment.hdfcOrderId, userId);
+        console.log("this is hdfcData returned", hdfcData);
         const latestStatus = hdfcData.status;
 
         // txn_id may arrive in the order status response after payment completes
