@@ -180,6 +180,7 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
     let hdfcData   = null;
     try {
       hdfcData   = await getHdfcOrderStatus(payment.hdfcOrderId, payment.customerId);
+      console.log("this is hdfcData ========>>>>>>>>>>.", hdfcData);
       liveStatus = hdfcData.status || liveStatus;
       logger.info({ reference_id, liveStatus }, '[HDFC-ACCUZPAY] checkTransaction live status');
     } catch (err) {
