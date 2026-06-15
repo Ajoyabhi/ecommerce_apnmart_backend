@@ -110,8 +110,9 @@ exports.handlePgNotify = async (req, res, next) => {
 
     // Verify status server-side — never trust POST body alone
     let liveStatus;
+    let hdfcData = null;
     try {
-      const hdfcData = await getHdfcOrderStatus(hdfcOrderId, payment.customerId);
+      hdfcData   = await getHdfcOrderStatus(hdfcOrderId, payment.customerId);
       liveStatus = hdfcData.status;
       logger.info({ hdfcOrderId, liveStatus }, '[HDFC-ACCUZPAY] server-side status verified');
     } catch (err) {
@@ -128,6 +129,19 @@ exports.handlePgNotify = async (req, res, next) => {
 
     const accuzpayStatus = liveStatus === 'CHARGED' ? 'TXN' : 'FAILED';
 
+    // UTR (rrn) only exists for CHARGED — bank never assigns one for failed payments
+    const utr        = liveStatus === 'CHARGED'
+      ? (hdfcData?.payment_gateway_response?.rrn || payload?.payment_gateway_response?.rrn || null)
+      : null;
+
+    // For failed payments, pass error context so accuzpay knows the reason
+    const errorCode    = liveStatus !== 'CHARGED'
+      ? (hdfcData?.bank_error_code    || hdfcData?.txn_detail?.error_code    || null)
+      : null;
+    const errorMessage = liveStatus !== 'CHARGED'
+      ? (hdfcData?.bank_error_message || hdfcData?.txn_detail?.error_message || null)
+      : null;
+
     await prisma.accuzpayPayment.update({
       where: { id: payment.id },
       data:  { status: liveStatus, forwardedAt: new Date() },
@@ -137,10 +151,12 @@ exports.handlePgNotify = async (req, res, next) => {
       await axios.post(
         payment.callbackUrl,
         {
-          reference_id: payment.referenceId,
-          status:       accuzpayStatus,
-          utr:          payload.txn_id || null,
-          amount:       parseFloat(payment.amount),
+          reference_id:  payment.referenceId,
+          status:        accuzpayStatus,
+          utr,
+          amount:        parseFloat(payment.amount),
+          ...(errorCode    && { error_code:    errorCode }),
+          ...(errorMessage && { error_message: errorMessage }),
         },
         {
           headers:  { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
@@ -195,14 +211,26 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
 
     const accuzpayStatus = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? 'TXN' : liveStatus;
 
+    const utr        = liveStatus === 'CHARGED'
+      ? (hdfcData?.payment_gateway_response?.rrn || null)
+      : null;
+    const errorCode    = liveStatus !== 'CHARGED'
+      ? (hdfcData?.bank_error_code    || hdfcData?.txn_detail?.error_code    || null)
+      : null;
+    const errorMessage = liveStatus !== 'CHARGED'
+      ? (hdfcData?.bank_error_message || hdfcData?.txn_detail?.error_message || null)
+      : null;
+
     return res.status(200).json({
       success:      true,
       reference_id: payment.referenceId,
       status:       accuzpayStatus,
       hdfc_status:  liveStatus,
       amount:       parseFloat(payment.amount),
-      utr:          hdfcData?.txn_id || null,
+      utr,
       hdfcOrderId:  payment.hdfcOrderId,
+      ...(errorCode    && { error_code:    errorCode }),
+      ...(errorMessage && { error_message: errorMessage }),
     });
   } catch (error) {
     logger.error(`[HDFC-ACCUZPAY] checkTransaction error: ${error.message}`);
