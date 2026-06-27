@@ -69,7 +69,8 @@ async function getAirpayAccessToken() {
   }
 
   const decrypted  = JSON.parse(airpayDecrypt(raw.response, secretKey));
-  const token      = decrypted?.data?.access_token;
+  const token = decrypted?.data?.access_token;
+  logger.info('[AIRPAY] OAuth token preview', { tokenSnippet: token?.substring(0, 20), fullDecrypted: JSON.stringify(decrypted) });
 
   if (!token) {
     throw new Error(`AirPay access_token missing in response: ${JSON.stringify(decrypted)}`);
