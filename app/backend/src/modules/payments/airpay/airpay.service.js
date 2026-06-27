@@ -88,7 +88,7 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
   const merchantId   = process.env.AIRPAY_MERCHANT_ID;
   const username     = process.env.AIRPAY_USERNAME;
   const password     = process.env.AIRPAY_PASSWORD;
-  const clientSecret = process.env.AIRPAY_SECRET;
+  const secret = process.env.AIRPAY_SECRET;
   const secretKey    = process.env.AIRPAY_SECRET_KEY;
 
   const data = {
