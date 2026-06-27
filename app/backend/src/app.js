@@ -48,9 +48,10 @@ app.use(
 
 // Single CORS middleware — open policy for HDFC server-to-server callbacks, strict for everything else
 const HDFC_CALLBACK_PATHS = [
-    '/api/v1/payments/hdfc/return',    // card/netbanking return
-    '/api/v1/payments/hdfc/pg-notify', // UPI accuzpay callback
-    '/api/v1/payments/hdfc/webhook',   // generic webhook
+    '/api/v1/payments/hdfc/return',       // card/netbanking return
+    '/api/v1/payments/hdfc/pg-notify',    // UPI accuzpay callback
+    '/api/v1/payments/hdfc/webhook',      // generic webhook
+    '/api/v1/payments/airpay/ap-ipn',     // AirPay IPN callback
 ];
 app.use((req, res, next) => {
     if (HDFC_CALLBACK_PATHS.includes(req.path)) {

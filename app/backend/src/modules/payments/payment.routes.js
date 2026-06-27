@@ -13,4 +13,10 @@ router.use('/hdfc', require('./hdfc/hdfc.routes'));
 // HDFC — Accuzpay integration (new files, approved files untouched)
 router.use('/hdfc', require('./hdfc/accuzpay.routes'));
 
+// Razorpay — Accuzpay downstream integration
+// router.use('/razorpay', require('./razorpay/razorpay.routes'));
+
+// AirPay — Accuzpay downstream integration
+router.use('/airpay', require('./airpay/airpay.routes'));
+
 module.exports = router;
