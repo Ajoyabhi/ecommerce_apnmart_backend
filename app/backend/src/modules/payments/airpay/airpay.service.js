@@ -34,8 +34,8 @@ function airpayChecksum(data) {
 
 let _tokenCache = { token: null, expiresAt: 0 };
 
-async function getAirpayAccessToken() {
-  if (_tokenCache.token && Date.now() < _tokenCache.expiresAt) {
+async function getAirpayAccessToken(forceRefresh = false) {   // ← add param
+  if (!forceRefresh && _tokenCache.token && Date.now() < _tokenCache.expiresAt) {
     return _tokenCache.token;
   }
 
@@ -77,7 +77,7 @@ async function getAirpayAccessToken() {
   }
 
   // Conservative 50-min cache (tokens are typically valid for 60 min)
-  _tokenCache = { token, expiresAt: Date.now() + 50 * 60 * 1000 };
+  _tokenCache = { token, expiresAt: Date.now() + 10 * 60 * 1000 };
   logger.info('[AIRPAY] getAccessToken ← token acquired and cached');
 
   return token;
@@ -89,7 +89,7 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
   const merchantId   = process.env.AIRPAY_MERCHANT_ID;
   const username     = process.env.AIRPAY_USERNAME;
   const password     = process.env.AIRPAY_PASSWORD;
-  const secret = process.env.AIRPAY_SECRET;
+  const secret       = process.env.AIRPAY_SECRET;
   const secretKey    = process.env.AIRPAY_SECRET_KEY;
 
   const data = {
@@ -101,41 +101,51 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
     customer_consent: 'Y',
   };
 
-  // mer_dom is optional — only include it if a domain is explicitly configured,
-  // because AirPay rejects unregistered domains with U04
   if (process.env.AIRPAY_MERCHANT_DOMAIN) {
     data.mer_dom = Buffer.from(process.env.AIRPAY_MERCHANT_DOMAIN).toString('base64');
   }
 
-  // private key uses client_secret (not secret) — matches the PHP reference code
   const privatekey = crypto
     .createHash('sha256')
     .update(`${secret}@${username}:|:${password}`)
     .digest('hex');
 
-  const token   = await getAirpayAccessToken();
-  const payload = new URLSearchParams({
-    merchant_id: merchantId,
-    encdata:     airpayEncrypt(JSON.stringify(data), secretKey),
-    checksum:    airpayChecksum(data),
-    privatekey,
-  });
+  let decrypted;
 
-  logger.info({ airpayOrderId, amount }, '[AIRPAY] generateQr → request');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getAirpayAccessToken(attempt > 0);   // force refresh on retry
 
-  const { data: raw } = await axios.post(
-    `${BASE_URL}/generateorder/?token=${token}`,
-    payload.toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-  );
+    const payload = new URLSearchParams({
+      merchant_id: merchantId,
+      encdata:     airpayEncrypt(JSON.stringify(data), secretKey),
+      checksum:    airpayChecksum(data),
+      privatekey,
+    });
 
-  if (!raw?.response) {
-    throw new Error(`AirPay generateorder failed: ${JSON.stringify(raw)}`);
+    logger.info({ airpayOrderId, amount, attempt }, '[AIRPAY] generateQr → request');
+
+    const { data: raw } = await axios.post(
+      `${BASE_URL}/generateorder/?token=${token}`,
+      payload.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    );
+
+    if (!raw?.response) {
+      throw new Error(`AirPay generateorder failed: ${JSON.stringify(raw)}`);
+    }
+
+    decrypted = JSON.parse(airpayDecrypt(raw.response, secretKey));
+
+    if (decrypted?.response_code === '903' && attempt === 0) {
+      logger.warn({ airpayOrderId }, '[AIRPAY] token rejected (903) — clearing cache and retrying');
+      _tokenCache = { token: null, expiresAt: 0 };   // force re-fetch on next loop
+      continue;
+    }
+
+    break;
   }
 
-  const decrypted    = JSON.parse(airpayDecrypt(raw.response, secretKey));
   const upiIntentUri = decrypted?.data?.qrcode_string;
-
   if (!upiIntentUri) {
     throw new Error(`AirPay qrcode_string missing: ${JSON.stringify(decrypted)}`);
   }
@@ -145,14 +155,13 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
 
   return { upiIntentUri, apTransactionId, raw: decrypted };
 }
-
 // ─── Verify / Status Check ────────────────────────────────────────────────────
 
 async function verifyAirpayPayment(airpayOrderId) {
   const merchantId = process.env.AIRPAY_MERCHANT_ID;
   const username   = process.env.AIRPAY_USERNAME;
   const password   = process.env.AIRPAY_PASSWORD;
-  const secret     = process.env.AIRPAY_SECRET;      // different from client_secret
+  const secret     = process.env.AIRPAY_SECRET;
   const secretKey  = process.env.AIRPAY_SECRET_KEY;
 
   const data = {
@@ -160,36 +169,49 @@ async function verifyAirpayPayment(airpayOrderId) {
     orderid:     airpayOrderId,
   };
 
-  // private key uses secret (not client_secret) — matches the PHP reference code
   const privatekey = crypto
     .createHash('sha256')
     .update(`${secret}@${username}:|:${password}`)
     .digest('hex');
 
-  const token   = await getAirpayAccessToken();
-  const payload = new URLSearchParams({
-    merchant_id: merchantId,
-    encdata:     airpayEncrypt(JSON.stringify(data), secretKey),
-    checksum:    airpayChecksum(data),
-    privatekey,
-  });
+  let decrypted;
 
-  logger.info({ airpayOrderId }, '[AIRPAY] verifyPayment → request');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await getAirpayAccessToken(attempt > 0);  // force refresh on retry
 
-  const { data: raw } = await axios.post(
-    `${BASE_URL}/verify/?token=${token}`,
-    payload.toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-  );
+    const payload = new URLSearchParams({
+      merchant_id: merchantId,
+      encdata:     airpayEncrypt(JSON.stringify(data), secretKey),
+      checksum:    airpayChecksum(data),
+      privatekey,
+    });
 
-  if (!raw?.response) {
-    throw new Error(`AirPay verify failed: ${JSON.stringify(raw)}`);
+    logger.info({ airpayOrderId, attempt }, '[AIRPAY] verifyPayment → request');
+
+    const { data: raw } = await axios.post(
+      `${BASE_URL}/verify/?token=${token}`,
+      payload.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    );
+
+    if (!raw?.response) {
+      throw new Error(`AirPay verify failed: ${JSON.stringify(raw)}`);
+    }
+
+    decrypted = JSON.parse(airpayDecrypt(raw.response, secretKey));
+
+    if (decrypted?.response_code === '903' && attempt === 0) {
+      logger.warn({ airpayOrderId }, '[AIRPAY] token rejected (903) — clearing cache and retrying');
+      _tokenCache = { token: null, expiresAt: 0 };
+      continue;
+    }
+
+    break;
   }
 
-  const decrypted = JSON.parse(airpayDecrypt(raw.response, secretKey));
   logger.info({ airpayOrderId, decrypted }, '[AIRPAY] verifyPayment ← response');
-
   return decrypted;
 }
+
 
 module.exports = { generateAirpayQr, verifyAirpayPayment, getAirpayAccessToken, airpayDecrypt };
