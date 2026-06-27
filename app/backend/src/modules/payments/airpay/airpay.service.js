@@ -88,7 +88,7 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
   const merchantId   = process.env.AIRPAY_MERCHANT_ID;
   const username     = process.env.AIRPAY_USERNAME;
   const password     = process.env.AIRPAY_PASSWORD;
-  const clientSecret = process.env.AIRPAY_CLIENT_SECRET;
+  const clientSecret = process.env.AIRPAY_SECRET;
   const secretKey    = process.env.AIRPAY_SECRET_KEY;
 
   const data = {
@@ -109,7 +109,7 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
   // private key uses client_secret (not secret) — matches the PHP reference code
   const privatekey = crypto
     .createHash('sha256')
-    .update(`${clientSecret}@${username}:|:${password}`)
+    .update(`${secret}@${username}:|:${password}`)
     .digest('hex');
 
   const token   = await getAirpayAccessToken();
