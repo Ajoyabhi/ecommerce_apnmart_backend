@@ -4,7 +4,7 @@ const { prisma } = require('../../../config/database');
 const logger   = require('../../../utils/logger');
 const { generateAirpayQr, verifyAirpayPayment, airpayDecrypt } = require('./airpay.service');
 
-// Generates a unique orderid for AirPay (≤30 alphanumeric chars)
+// Generates a unique internal orderid for AirPay (≤30 alphanumeric chars)
 function generateAirpayOrderId() {
   return `AP${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
     .slice(0, 30)
@@ -88,7 +88,6 @@ exports.initiateAirpayPayin = async (req, res, next) => {
     });
 
     logger.info({ reference_id, airpayOrderId, apTransactionId }, '[AIRPAY-ACCUZPAY] payin initiated');
-
     return res.status(200).json({
       success:           true,
       reference_id,
@@ -150,9 +149,9 @@ exports.handleAirpayIpn = async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    const txnStatus = verifyData?.data?.transaction_payment_status
+    const txnStatus = (verifyData?.data?.transaction_payment_status
                    || verifyData?.transaction_payment_status
-                   || 'UNKNOWN';
+                   || 'UNKNOWN').toUpperCase();
 
     logger.info({ orderid, txnStatus }, '[AIRPAY] IPN: server-side status verified');
 
@@ -197,9 +196,9 @@ exports.checkAirpayTransaction = async (req, res, next) => {
 
     try {
       verifyData = await verifyAirpayPayment(payment.airpayOrderId);
-      txnStatus  = verifyData?.data?.transaction_payment_status
+      txnStatus  = (verifyData?.data?.transaction_payment_status
                 || verifyData?.transaction_payment_status
-                || txnStatus;
+                || txnStatus).toUpperCase();
       logger.info({ reference_id, txnStatus }, '[AIRPAY-ACCUZPAY] checkTransaction live status');
     } catch (err) {
       logger.warn(`[AIRPAY-ACCUZPAY] checkTransaction: AirPay verify failed — using DB status. ${err.message}`);
