@@ -178,29 +178,13 @@ async function handlePaymentCaptured(payload, res) {
     return res.status(200).json({ received: true });
   }
 
-  // Server-side verify — never trust webhook payload alone
-  let livePayment = null;
-  try {
-    livePayment = await fetchRazorpayPayment(paymentId);
-    logger.info({ paymentId, status: livePayment.status }, '[RAZORPAY] server-side verify');
-  } catch (err) {
-    logger.error(`[RAZORPAY] server-side verify failed — ${err.message}`);
-  }
-
-  const liveStatus = livePayment?.status || 'captured';
-
   await prisma.razorpayPayment.update({
     where: { id: payment.id },
-    data:  { razorpayPaymentId: paymentId, status: liveStatus.toUpperCase() },
+    data:  { razorpayPaymentId: paymentId, status: 'CAPTURED' },
   });
 
-  if (liveStatus !== 'captured') {
-    return res.status(200).json({ received: true });
-  }
-
-  const utr = livePayment?.acquirer_data?.rrn
-           || livePayment?.acquirer_data?.utr
-           || paymentEntity?.acquirer_data?.rrn
+  const utr = paymentEntity?.acquirer_data?.rrn
+           || paymentEntity?.acquirer_data?.utr
            || null;
 
   logger.info({ referenceId: payment.referenceId, utr, paymentId }, '[RAZORPAY] forwarding to AccuzPay');
