@@ -14,7 +14,7 @@ router.use('/hdfc', require('./hdfc/hdfc.routes'));
 router.use('/hdfc', require('./hdfc/accuzpay.routes'));
 
 // Razorpay — Accuzpay downstream integration
-// router.use('/razorpay', require('./razorpay/razorpay.routes'));
+router.use('/razorpay', require('./razorpay/razorpay.routes'));
 
 // AirPay — Accuzpay downstream integration
 router.use('/airpay', require('./airpay/airpay.routes'));

@@ -261,6 +261,41 @@ model HdfcPayment {
   updatedAt    DateTime @updatedAt
 }
 
+model RazorpayPayment {
+  id                  String    @id @default(uuid())
+
+  referenceId         String    @unique
+  // Smart Collect flow (active — no activation needed)
+  virtualAccountId    String?   @unique   // va_XXXX from Smart Collect API
+  qrCodeId            String?   @unique   // legacy blocked flow
+  qrImageUrl          String?   @db.Text  // hosted PNG URL returned by Razorpay
+  // S2S UPI Intent flow (future — needs Razorpay to enable on account)
+  razorpayOrderId     String?   @unique
+  upiIntentUri        String?   @db.Text  // upi://pay?... deep link built from VPA
+  // Shared
+  razorpayPaymentId   String?
+  customerId          String
+  amount              Decimal   @db.Decimal(10, 2)
+  currency            String    @default("INR")
+  status              String    @default("PENDING")
+  callbackUrl         String
+
+  customerName        String?
+  customerEmail       String?
+  customerPhone       String?
+
+  forwardedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([virtualAccountId])
+  @@index([qrCodeId])
+  @@index([razorpayOrderId])
+  @@index([referenceId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model AccuzpayPayment {
   id              String   @id @default(uuid())
 
