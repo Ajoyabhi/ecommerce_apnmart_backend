@@ -16,6 +16,35 @@ function generateRazorpayReceiptId() {
     .toUpperCase();
 }
 
+// ─── Forward result to AccuzPay ──────────────────────────────────────────────
+async function forwardToAccuzpay(payment, { paymentId, utr, status, errorCode, errorMessage }) {
+  const body = {
+    reference_id: payment.referenceId,
+    status,
+    utr:          utr || null,
+    amount:       parseFloat(payment.amount),
+    payment_id:   paymentId || null,
+    ...(errorCode    && { error_code:    errorCode }),
+    ...(errorMessage && { error_message: errorMessage }),
+  };
+
+  await axios.post(
+    payment.callbackUrl,
+    body,
+    {
+      headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
+      timeout: 10000,
+    }
+  );
+
+  await prisma.razorpayPayment.update({
+    where: { id: payment.id },
+    data:  { status: 'FORWARDED', forwardedAt: new Date() },
+  });
+
+  logger.info({ referenceId: payment.referenceId, status, utr }, '[RAZORPAY] forwarded to AccuzPay OK');
+}
+
 // ─── 1. Initiate payin ────────────────────────────────────────────────────────
 exports.initiateRazorpayPayin = async (req, res, next) => {
   try {
@@ -174,29 +203,12 @@ async function handlePaymentCaptured(payload, res) {
            || paymentEntity?.acquirer_data?.rrn
            || null;
 
-  logger.info({ referenceId: payment.referenceId, utr }, '[RAZORPAY] forwarding to callback');
+  logger.info({ referenceId: payment.referenceId, utr, paymentId }, '[RAZORPAY] forwarding to AccuzPay');
 
   try {
-    await axios.post(
-      payment.callbackUrl,
-      {
-        reference_id: payment.referenceId,
-        status:       'TXN',
-        utr,
-        amount:       parseFloat(payment.amount),
-        payment_id:   paymentId,
-      },
-      { headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' }, timeout: 10000 }
-    );
-
-    await prisma.razorpayPayment.update({
-      where: { id: payment.id },
-      data:  { status: 'FORWARDED', forwardedAt: new Date() },
-    });
-
-    logger.info(`[RAZORPAY] forwarded OK — referenceId=${payment.referenceId} utr=${utr}`);
+    await forwardToAccuzpay(payment, { paymentId, utr, status: 'TXN' });
   } catch (fwdErr) {
-    logger.error(`[RAZORPAY] forward failed — ${fwdErr.message}`);
+    logger.error(`[RAZORPAY] forward to AccuzPay failed — ${fwdErr.message} — will retry on next webhook`);
   }
 
   return res.status(200).json({ received: true });
@@ -206,18 +218,29 @@ async function handlePaymentFailed(payload, res) {
   const paymentEntity = payload?.payload?.payment?.entity;
   const paymentId     = paymentEntity?.id;
   const orderId       = paymentEntity?.order_id;
+  const errorCode     = paymentEntity?.error_code    || null;
+  const errorMessage  = paymentEntity?.error_description || null;
 
   if (!orderId) return res.status(200).json({ received: true });
 
   const payment = await prisma.razorpayPayment.findUnique({ where: { razorpayOrderId: orderId } });
   if (!payment) return res.status(200).json({ received: true });
 
+  if (payment.status === 'FORWARDED') return res.status(200).json({ received: true });
+
   await prisma.razorpayPayment.update({
     where: { id: payment.id },
     data:  { razorpayPaymentId: paymentId || null, status: 'FAILED' },
   });
 
-  logger.info(`[RAZORPAY] payment.failed — referenceId=${payment.referenceId}`);
+  logger.info(`[RAZORPAY] payment.failed — referenceId=${payment.referenceId} error=${errorCode}`);
+
+  try {
+    await forwardToAccuzpay(payment, { paymentId, utr: null, status: 'FAILED', errorCode, errorMessage });
+  } catch (fwdErr) {
+    logger.error(`[RAZORPAY] forward failed payment to AccuzPay failed — ${fwdErr.message}`);
+  }
+
   return res.status(200).json({ received: true });
 }
 
