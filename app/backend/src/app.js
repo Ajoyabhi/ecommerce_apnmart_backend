@@ -59,6 +59,9 @@ app.use((req, res, next) => {
     }
     return cors(corsOptions)(req, res, next);
 });
+// Razorpay webhook needs raw body for HMAC signature — register before express.json()
+app.use('/api/v1/payments/razorpay/rp-webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json()); // Body parser
 app.use(express.urlencoded({ extended: true }));
 
