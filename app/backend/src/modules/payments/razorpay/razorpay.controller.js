@@ -132,6 +132,13 @@ exports.handleRazorpayWebhook = async (req, res) => {
     const rawBody   = req.body;
     const signature = req.headers['x-razorpay-signature'];
 
+    logger.info({
+      bodyType:   typeof rawBody,
+      isBuffer:   Buffer.isBuffer(rawBody),
+      bodyLength: rawBody?.length,
+      signature:  signature?.slice(0, 20) + '...',
+    }, '[RAZORPAY] webhook debug');
+
     if (!verifyRazorpayWebhookSignature(rawBody, signature)) {
       logger.warn('[RAZORPAY] webhook: invalid signature — rejected');
       return res.status(400).json({ success: false, message: 'Invalid signature' });
