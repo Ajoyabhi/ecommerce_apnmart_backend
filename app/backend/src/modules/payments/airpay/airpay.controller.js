@@ -1,42 +1,13 @@
-const axios    = require('axios');
-const crypto   = require('crypto');
 const { prisma } = require('../../../config/database');
 const logger   = require('../../../utils/logger');
-const { generateAirpayQr, verifyAirpayPayment, airpayDecrypt } = require('./airpay.service');
+const { generateAirpayQr, airpayDecrypt } = require('./airpay.service');
+const { enqueueForward } = require('../../../queues');
 
 // Generates a unique internal orderid for AirPay (≤30 alphanumeric chars)
 function generateAirpayOrderId() {
   return `AP${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
     .slice(0, 30)
     .toUpperCase();
-}
-
-// Forward confirmed payment to AccuzPay callback URL
-async function forwardToAccuzpay(payment, verifyData) {
-  const txnData = verifyData?.data || verifyData || {};
-  const utr     = txnData.rrn || txnData.utr || txnData.bank_ref_no || null;
-
-  await axios.post(
-    payment.callbackUrl,
-    {
-      reference_id:      payment.referenceId,
-      status:            'TXN',
-      utr,
-      amount:            parseFloat(payment.amount),
-      ap_transaction_id: payment.apTransactionId || txnData.ap_transactionid || null,
-    },
-    {
-      headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
-      timeout: 10000,
-    },
-  );
-
-  await prisma.airpayPayment.update({
-    where: { id: payment.id },
-    data:  { status: 'FORWARDED', forwardedAt: new Date(), airpayRaw: verifyData },
-  });
-
-  logger.info({ referenceId: payment.referenceId, utr }, '[AIRPAY] forwarded to AccuzPay ✅');
 }
 
 // ─── 1. Initiate payin — AccuzPay calls this ─────────────────────────────────
@@ -102,23 +73,22 @@ exports.initiateAirpayPayin = async (req, res, next) => {
 };
 
 // ─── 2. AirPay IPN callback — AirPay notifies us on payment completion ────────
-// AirPay POSTs an encrypted response field to this URL.
-// We always verify server-side via verifyAirpayPayment before forwarding.
+// AirPay POSTs an encrypted `response` field (or plain fields) to this URL.
+// We trust the IPN payload (no server-side verify call) and queue the forward.
 
 exports.handleAirpayIpn = async (req, res) => {
   try {
     const body = req.body;
-    logger.info({ body }, '[AIRPAY] IPN received');
+    logger.debug({ body }, '[AIRPAY] IPN received');
 
-    // Try to extract orderid — AirPay IPN may send encrypted response or plain fields
-    let orderid = body.orderid || body.order_id || null;
-
-    if (!orderid && body.response) {
+    // Decrypt the IPN response once — it carries orderid, status and utr.
+    let orderid   = body.orderid || body.order_id || null;
+    let decrypted = null;
+    if (body.response) {
       try {
-        const secretKey = process.env.AIRPAY_SECRET_KEY;
-        const decrypted = JSON.parse(airpayDecrypt(body.response, secretKey));
-        orderid = decrypted?.data?.orderid || decrypted?.orderid || null;
-        logger.info({ decrypted }, '[AIRPAY] IPN response decrypted');
+        decrypted = JSON.parse(airpayDecrypt(body.response, process.env.AIRPAY_SECRET_KEY));
+        orderid   = orderid || decrypted?.data?.orderid || decrypted?.orderid || null;
+        logger.debug({ decrypted }, '[AIRPAY] IPN response decrypted');
       } catch (decryptErr) {
         logger.warn(`[AIRPAY] IPN: could not decrypt response — ${decryptErr.message}`);
       }
@@ -140,34 +110,35 @@ exports.handleAirpayIpn = async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    // Always verify server-side — never trust IPN body alone
-    let verifyData;
-    try {
-      verifyData = await verifyAirpayPayment(orderid);
-    } catch (err) {
-      logger.error(`[AIRPAY] IPN: verifyPayment failed — ${err.message}`);
-      return res.status(200).json({ received: true });
-    }
+    // Trust the IPN payload — read status/utr straight from it.
+    const src       = decrypted?.data || decrypted || body;
+    const txnStatus = String(src.transaction_payment_status || body.transaction_payment_status || 'UNKNOWN').toUpperCase();
+    const utr       = src.rrn || src.utr || src.bank_ref_no || null;
+    const apTransactionId = src.ap_transactionid || payment.apTransactionId || null;
 
-    const txnStatus = (verifyData?.data?.transaction_payment_status
-                   || verifyData?.transaction_payment_status
-                   || 'UNKNOWN').toUpperCase();
-
-    logger.info({ orderid, txnStatus }, '[AIRPAY] IPN: server-side status verified');
+    logger.info({ orderid, txnStatus }, '[AIRPAY] IPN: trusting payload status');
 
     const dbStatus = txnStatus === 'SUCCESS' ? 'SUCCESS' : txnStatus === 'FAILED' ? 'FAILED' : 'PENDING';
-    await prisma.airpayPayment.update({ where: { id: payment.id }, data: { status: dbStatus } });
+    await prisma.airpayPayment.update({
+      where: { id: payment.id },
+      data:  { status: dbStatus, utr, airpayRaw: decrypted || body },
+    });
 
     if (txnStatus !== 'SUCCESS') {
       logger.info(`[AIRPAY] IPN: status=${txnStatus} — not forwarding`);
       return res.status(200).json({ received: true });
     }
 
-    try {
-      await forwardToAccuzpay(payment, verifyData);
-    } catch (fwdErr) {
-      logger.error(`[AIRPAY] IPN: forward to AccuzPay failed — ${fwdErr.message} — will retry on next ap-check poll`);
-    }
+    await enqueueForward({
+      gateway:         'airpay',
+      paymentId:       payment.id,
+      referenceId:     payment.referenceId,
+      callbackUrl:     payment.callbackUrl,
+      amount:          parseFloat(payment.amount),
+      status:          'TXN',
+      utr,
+      apTransactionId,
+    });
 
     return res.status(200).json({ received: true });
   } catch (error) {
@@ -190,47 +161,20 @@ exports.checkAirpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Fetch live status from AirPay
-    let verifyData = null;
-    let txnStatus  = payment.status;
-
-    try {
-      verifyData = await verifyAirpayPayment(payment.airpayOrderId);
-      txnStatus  = (verifyData?.data?.transaction_payment_status
-                || verifyData?.transaction_payment_status
-                || txnStatus).toUpperCase();
-      logger.info({ reference_id, txnStatus }, '[AIRPAY-ACCUZPAY] checkTransaction live status');
-    } catch (err) {
-      logger.warn(`[AIRPAY-ACCUZPAY] checkTransaction: AirPay verify failed — using DB status. ${err.message}`);
-    }
-
-    // Forward to AccuzPay if payment just confirmed and not already forwarded
-    if (txnStatus === 'SUCCESS' && payment.status !== 'FORWARDED') {
-      try {
-        await forwardToAccuzpay(payment, verifyData);
-      } catch (fwdErr) {
-        logger.error(`[AIRPAY-ACCUZPAY] checkTransaction: forward failed — ${fwdErr.message}`);
-      }
-    } else if (txnStatus !== payment.status) {
-      const dbStatus = txnStatus === 'FAILED' ? 'FAILED' : payment.status;
-      await prisma.airpayPayment.update({ where: { id: payment.id }, data: { status: dbStatus } });
-    }
-
-    // Reload record to get latest status after potential update
-    const latest       = await prisma.airpayPayment.findUnique({ where: { id: payment.id } });
-    const accuzStatus  = (latest.status === 'SUCCESS' || latest.status === 'FORWARDED') ? 'TXN' : latest.status;
-    const txnData      = verifyData?.data || {};
-    const utr          = txnData.rrn || txnData.utr || txnData.bank_ref_no || null;
+    // Return DB state — kept current by the (trusted) IPN. No live gateway call.
+    const dbStatus    = payment.status;
+    const accuzStatus = (dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED') ? 'TXN' : dbStatus;
+    const utr         = (dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED') ? payment.utr : null;
 
     return res.status(200).json({
       success:           true,
-      reference_id:      latest.referenceId,
+      reference_id:      payment.referenceId,
       status:            accuzStatus,
-      airpay_status:     txnStatus,
-      airpay_order_id:   latest.airpayOrderId,
-      ap_transaction_id: latest.apTransactionId,
-      forwarded:         latest.status === 'FORWARDED',
-      amount:            parseFloat(latest.amount),
+      airpay_status:     dbStatus,
+      airpay_order_id:   payment.airpayOrderId,
+      ap_transaction_id: payment.apTransactionId,
+      forwarded:         dbStatus === 'FORWARDED',
+      amount:            parseFloat(payment.amount),
       utr,
     });
   } catch (error) {

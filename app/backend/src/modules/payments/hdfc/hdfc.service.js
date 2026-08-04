@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { gatewayHttp } = require('../../../config/httpClient');
 const logger = require('../../../utils/logger');
 
 const BASE_URL = process.env.HDFC_ENV === 'production'
@@ -33,9 +33,9 @@ async function createHdfcOrder({ hdfcOrderId, amount, customerId, customerEmail,
         return_url: returnUrl,
     };
 
-    logger.info({ body, url: `${BASE_URL}/orders` }, '[HDFC] createOrder → request');
+    logger.debug({ body, url: `${BASE_URL}/orders` }, '[HDFC] createOrder → request');
 
-    const { data } = await axios.post(`${BASE_URL}/orders`, body, {
+    const { data } = await gatewayHttp.post(`${BASE_URL}/orders`, body, {
         headers: {
             ...commonHeaders(customerId),
             'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ async function createHdfcOrder({ hdfcOrderId, amount, customerId, customerEmail,
         },
     });
 
-    logger.info({ data }, '[HDFC] createOrder ← response');
+    logger.debug({ data }, '[HDFC] createOrder ← response');
     return data;
 }
 
@@ -61,9 +61,9 @@ async function initiateUpiIntent({ hdfcOrderId, customerId }) {
         format: 'json',
     });
 
-    logger.info({ params: params.toString(), url: `${BASE_URL}/txns` }, '[HDFC] initiateUpiIntent → request');
+    logger.debug({ params: params.toString(), url: `${BASE_URL}/txns` }, '[HDFC] initiateUpiIntent → request');
 
-    const { data } = await axios.post(`${BASE_URL}/txns`, params.toString(), {
+    const { data } = await gatewayHttp.post(`${BASE_URL}/txns`, params.toString(), {
         headers: {
             Authorization: authHeader(),
             'x-merchantid': process.env.HDFC_MERCHANT_ID,
@@ -72,7 +72,7 @@ async function initiateUpiIntent({ hdfcOrderId, customerId }) {
         },
     });
 
-    logger.info({ data }, '[HDFC] initiateUpiIntent ← response');
+    logger.debug({ data }, '[HDFC] initiateUpiIntent ← response');
     return data;
 }
 
@@ -103,7 +103,7 @@ function buildUpiIntentUri(sdkParams) {
  * Poll payment status for an HDFC order.
  */
 async function getHdfcOrderStatus(hdfcOrderId, customerId) {
-    const { data } = await axios.get(
+    const { data } = await gatewayHttp.get(
         `${BASE_URL}/orders/${hdfcOrderId}`,
         {
             headers: {

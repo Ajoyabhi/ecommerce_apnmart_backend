@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const axios  = require('axios');
+const { gatewayHttp } = require('../../../config/httpClient');
 const logger = require('../../../utils/logger');
 
 const BASE_URL = 'https://kraken.airpay.co.in/airpay/pay/v4/api';
@@ -58,9 +58,9 @@ async function getAirpayAccessToken(forceRefresh = false) {   // ← add param
     // no privatekey for OAuth2
   });
 
-  logger.info('[AIRPAY] getAccessToken → request');
+  logger.debug('[AIRPAY] getAccessToken → request');
 
-  const { data: raw } = await axios.post(`${BASE_URL}/oauth2/`, payload.toString(), {
+  const { data: raw } = await gatewayHttp.post(`${BASE_URL}/oauth2/`, payload.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
@@ -70,7 +70,7 @@ async function getAirpayAccessToken(forceRefresh = false) {   // ← add param
 
   const decrypted  = JSON.parse(airpayDecrypt(raw.response, secretKey));
   const token = decrypted?.data?.access_token;
-  logger.info('[AIRPAY] OAuth token preview', { tokenSnippet: token?.substring(0, 20), fullDecrypted: JSON.stringify(decrypted) });
+  logger.debug('[AIRPAY] OAuth token preview', { tokenSnippet: token?.substring(0, 20), fullDecrypted: JSON.stringify(decrypted) });
 
   if (!token) {
     throw new Error(`AirPay access_token missing in response: ${JSON.stringify(decrypted)}`);
@@ -122,9 +122,9 @@ async function generateAirpayQr({ airpayOrderId, amount, buyerEmail, buyerPhone 
       privatekey,
     });
 
-    logger.info({ airpayOrderId, amount, attempt }, '[AIRPAY] generateQr → request');
+    logger.debug({ airpayOrderId, amount, attempt }, '[AIRPAY] generateQr → request');
 
-    const { data: raw } = await axios.post(
+    const { data: raw } = await gatewayHttp.post(
       `${BASE_URL}/generateorder/?token=${token}`,
       payload.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
@@ -186,9 +186,9 @@ async function verifyAirpayPayment(airpayOrderId) {
       privatekey,
     });
 
-    logger.info({ airpayOrderId, attempt }, '[AIRPAY] verifyPayment → request');
+    logger.debug({ airpayOrderId, attempt }, '[AIRPAY] verifyPayment → request');
 
-    const { data: raw } = await axios.post(
+    const { data: raw } = await gatewayHttp.post(
       `${BASE_URL}/verify/?token=${token}`,
       payload.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
@@ -209,7 +209,7 @@ async function verifyAirpayPayment(airpayOrderId) {
     break;
   }
 
-  logger.info({ airpayOrderId, decrypted }, '[AIRPAY] verifyPayment ← response');
+  logger.debug({ airpayOrderId, decrypted }, '[AIRPAY] verifyPayment ← response');
   return decrypted;
 }
 

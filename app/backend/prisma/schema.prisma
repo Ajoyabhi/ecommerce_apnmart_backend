@@ -274,6 +274,7 @@ model RazorpayPayment {
   upiIntentUri        String?   @db.Text  // upi://pay?... deep link built from VPA
   // Shared
   razorpayPaymentId   String?
+  utr                 String?             // RRN/UTR captured from the trusted webhook
   customerId          String
   amount              Decimal   @db.Decimal(10, 2)
   currency            String    @default("INR")
@@ -306,6 +307,7 @@ model AccuzpayPayment {
   customerId      String
   amount          Decimal  @db.Decimal(10, 2)
   status          String   @default("PENDING")
+  utr             String?           // RRN/UTR captured from the trusted webhook
   upiIntentUri    String?  @db.Text
   sdkParams       Json?
 
@@ -360,6 +362,7 @@ model AirpayPayment {
   customerId      String
   amount          Decimal   @db.Decimal(10, 2)
   status          String    @default("PENDING")  // PENDING | SUCCESS | FAILED | FORWARDED
+  utr             String?             // RRN/UTR captured from the trusted webhook
   callbackUrl     String
 
   customerName    String?

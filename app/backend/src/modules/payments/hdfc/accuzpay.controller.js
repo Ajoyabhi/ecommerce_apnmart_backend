@@ -1,14 +1,13 @@
 const { prisma } = require('../../../config/database');
 const logger = require('../../../utils/logger');
-const axios = require('axios');
 const fs = require('fs');
 const {
   createHdfcOrder,
   initiateUpiIntent,
   buildUpiIntentUri,
-  getHdfcOrderStatus,
 } = require('./hdfc.service');
-const { generateAndSaveInvoice, getInvoiceFilePath } = require('../../../services/invoice.service');
+const { enqueueForward, enqueueInvoice } = require('../../../queues');
+const { ensureInvoice } = require('./accuzpay.invoice');
 
 function generateHdfcOrderId() {
   return `H${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
@@ -68,19 +67,27 @@ exports.initiateAccuzpayPayin = async (req, res, next) => {
     });
 
     const txnResponse = await initiateUpiIntent({ hdfcOrderId, customerId });
-    logger.info({ txnResponse }, '[HDFC-ACCUZPAY] initiateUpiIntent response');
+    logger.debug({ txnResponse }, '[HDFC-ACCUZPAY] initiateUpiIntent response');
 
     const sdkParams    = txnResponse.sdk_params || txnResponse.payment?.sdk_params || {};
     const upiIntentUri = buildUpiIntentUri(sdkParams);
     const txnId        = txnResponse.txn_id || null;
 
-    await prisma.accuzpayPayment.update({
+    // Respond immediately — the sync path only needs upiIntentUri. Persisting the
+    // txn details is not required to build the response, so keep it off the hot
+    // path (one fewer DB round-trip per request, connection freed sooner).
+    res.status(200).json({ success: true, upiIntentUri, hdfcOrderId, txnId });
+
+    prisma.accuzpayPayment.update({
       where: { id: payment.id },
       data:  { txnId, upiIntentUri, sdkParams },
-    });
-
-    return res.status(200).json({ success: true, upiIntentUri, hdfcOrderId, txnId });
+    }).catch((err) => logger.error(`[HDFC-ACCUZPAY] deferred txn update failed for ${hdfcOrderId}: ${err.message}`));
+    return;
   } catch (error) {
+    // Unique constraint race on referenceId — treat as duplicate, not a 500.
+    if (error.code === 'P2002') {
+      return res.status(409).json({ success: false, message: 'Transaction with this reference_id already exists' });
+    }
     logger.error(`[HDFC-ACCUZPAY] initiateAccuzpayPayin error: ${error.message}`);
     next(error);
   }
@@ -91,7 +98,7 @@ exports.handlePgNotify = async (req, res, next) => {
   try {
     const payload     = req.body;
     const hdfcOrderId = payload.order_id || payload.id;
-    logger.info({ payload }, '[HDFC-ACCUZPAY] pg-notify received');
+    logger.debug({ payload }, '[HDFC-ACCUZPAY] pg-notify received');
 
     if (!hdfcOrderId) {
       return res.status(200).json({ received: true });
@@ -108,17 +115,8 @@ exports.handlePgNotify = async (req, res, next) => {
       return res.status(200).json({ received: true });
     }
 
-    // Verify status server-side — never trust POST body alone
-    let liveStatus;
-    let hdfcData = null;
-    try {
-      hdfcData   = await getHdfcOrderStatus(hdfcOrderId, payment.customerId);
-      liveStatus = hdfcData.status;
-      logger.info({ hdfcOrderId, liveStatus }, '[HDFC-ACCUZPAY] server-side status verified');
-    } catch (err) {
-      logger.error(`[HDFC-ACCUZPAY] status check failed: ${err.message} — using payload status`);
-      liveStatus = payload.status;
-    }
+    // Trust the webhook payload status (no server-side transaction-check call).
+    const liveStatus = payload.status;
 
     const terminalStatuses = ['CHARGED', 'AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'];
     if (!terminalStatuses.includes(liveStatus)) {
@@ -130,45 +128,33 @@ exports.handlePgNotify = async (req, res, next) => {
     const accuzpayStatus = liveStatus === 'CHARGED' ? 'TXN' : 'FAILED';
 
     // UTR (rrn) only exists for CHARGED — bank never assigns one for failed payments
-    const utr        = liveStatus === 'CHARGED'
-      ? (hdfcData?.payment_gateway_response?.rrn || payload?.payment_gateway_response?.rrn || null)
+    const utr = liveStatus === 'CHARGED'
+      ? (payload?.payment_gateway_response?.rrn || null)
       : null;
 
     // For failed payments, pass error context so accuzpay knows the reason
-    const errorCode    = liveStatus !== 'CHARGED'
-      ? (hdfcData?.bank_error_code    || hdfcData?.txn_detail?.error_code    || null)
+    const errorCode = liveStatus !== 'CHARGED'
+      ? (payload?.bank_error_code    || payload?.txn_detail?.error_code    || null)
       : null;
     const errorMessage = liveStatus !== 'CHARGED'
-      ? (hdfcData?.bank_error_message || hdfcData?.txn_detail?.error_message || null)
+      ? (payload?.bank_error_message || payload?.txn_detail?.error_message || null)
       : null;
 
-    await prisma.accuzpayPayment.update({
-      where: { id: payment.id },
-      data:  { status: liveStatus, forwardedAt: new Date() },
+    // Record the terminal status + utr now; the forward job flips it to FORWARDED on success.
+    await prisma.accuzpayPayment.update({ where: { id: payment.id }, data: { status: liveStatus, utr } });
+
+    // Hand the downstream forward to the queue (retried, off the response path).
+    await enqueueForward({
+      gateway:      'hdfc',
+      paymentId:    payment.id,
+      referenceId:  payment.referenceId,
+      callbackUrl:  payment.callbackUrl,
+      amount:       parseFloat(payment.amount),
+      status:       accuzpayStatus,
+      utr,
+      errorCode,
+      errorMessage,
     });
-
-    try {
-      await axios.post(
-        payment.callbackUrl,
-        {
-          reference_id:  payment.referenceId,
-          status:        accuzpayStatus,
-          utr,
-          amount:        parseFloat(payment.amount),
-          ...(errorCode    && { error_code:    errorCode }),
-          ...(errorMessage && { error_message: errorMessage }),
-        },
-        {
-          headers:  { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
-          timeout:  10000,
-        }
-      );
-
-      await prisma.accuzpayPayment.update({ where: { id: payment.id }, data: { status: 'FORWARDED' } });
-      logger.info(`[HDFC-ACCUZPAY] forwarded to accuzpay: referenceId=${payment.referenceId} status=${accuzpayStatus}`);
-    } catch (fwdErr) {
-      logger.error(`[HDFC-ACCUZPAY] forward to accuzpay failed: ${fwdErr.message} — will retry on next webhook`);
-    }
 
     return res.status(200).json({ received: true });
   } catch (error) {
@@ -191,35 +177,10 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Fetch live status from HDFC
-    let liveStatus = payment.status;
-    let hdfcData   = null;
-    try {
-      hdfcData   = await getHdfcOrderStatus(payment.hdfcOrderId, payment.customerId);
-      console.log("this is hdfcData ========>>>>>>>>>>.", hdfcData);
-      liveStatus = hdfcData.status || liveStatus;
-      logger.info({ reference_id, liveStatus }, '[HDFC-ACCUZPAY] checkTransaction live status');
-    } catch (err) {
-      logger.warn(`[HDFC-ACCUZPAY] checkTransaction: HDFC status fetch failed — using DB status. ${err.message}`);
-    }
-
-    // Sync DB if status changed and is terminal
-    const terminalStatuses = ['CHARGED', 'AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED', 'FORWARDED'];
-    if (liveStatus !== payment.status && terminalStatuses.includes(liveStatus)) {
-      await prisma.accuzpayPayment.update({ where: { id: payment.id }, data: { status: liveStatus } });
-    }
-
+    // Return DB state — kept current by the (trusted) webhook. No live gateway call.
+    const liveStatus     = payment.status;
     const accuzpayStatus = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? 'TXN' : liveStatus;
-
-    const utr        = liveStatus === 'CHARGED'
-      ? (hdfcData?.payment_gateway_response?.rrn || null)
-      : null;
-    const errorCode    = liveStatus !== 'CHARGED'
-      ? (hdfcData?.bank_error_code    || hdfcData?.txn_detail?.error_code    || null)
-      : null;
-    const errorMessage = liveStatus !== 'CHARGED'
-      ? (hdfcData?.bank_error_message || hdfcData?.txn_detail?.error_message || null)
-      : null;
+    const utr            = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? payment.utr : null;
 
     return res.status(200).json({
       success:      true,
@@ -229,8 +190,6 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
       amount:       parseFloat(payment.amount),
       utr,
       hdfcOrderId:  payment.hdfcOrderId,
-      ...(errorCode    && { error_code:    errorCode }),
-      ...(errorMessage && { error_message: errorMessage }),
     });
   } catch (error) {
     logger.error(`[HDFC-ACCUZPAY] checkTransaction error: ${error.message}`);
@@ -408,6 +367,10 @@ exports.saveTransactionItems = async (req, res, next) => {
     ]);
 
     const saved = await prisma.accuzpayPaymentItem.findMany({ where: { paymentId: payment.id } });
+
+    // Pre-generate the invoice PDF off the request path so the later download is instant.
+    await enqueueInvoice({ paymentId: payment.id });
+
     return res.json({ success: true, items: saved, selectedTotal });
   } catch (error) {
     logger.error(`[HDFC-ACCUZPAY] saveTransactionItems error: ${error.message}`);
@@ -433,44 +396,8 @@ exports.downloadInvoice = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Item total does not match transaction amount' });
     }
 
-    const addr = (payment.shippingAddress && typeof payment.shippingAddress === 'object')
-      ? payment.shippingAddress : {};
-
-    // Build order-compatible object for existing invoice generator
-    const orderObj = {
-      orderNumber:    `ACCUZ-${payment.referenceId}`,
-      createdAt:      payment.createdAt,
-      total:          payment.amount,
-      subtotal:       payment.amount,
-      taxAmount:      0,
-      shippingAmount: 0,
-      paymentMethod:  'UPI',
-      paymentStatus:  'paid',
-      shippingAddress: {
-        fullName:     payment.customerName || '',
-        phone:        payment.customerPhone || '',
-        addressLine1: addr.line1 || '',
-        addressLine2: addr.line2 || '',
-        city:         addr.city  || '',
-        state:        addr.state || '',
-        pincode:      addr.pincode || '',
-        country:      addr.country || 'India',
-      },
-      user: {
-        name:  payment.customerName  || '',
-        email: payment.customerEmail || '',
-      },
-      items: payment.items.map(item => ({
-        productName: item.productName,
-        variantName: item.variantName || '',
-        sku:         item.variant?.sku || item.product?.sku || '',
-        unitPrice:   item.unitPrice,
-        quantity:    item.quantity,
-        totalPrice:  item.totalPrice,
-      })),
-    };
-
-    const filePath = await generateAndSaveInvoice(orderObj);
+    // Serves the cached PDF if the worker already rendered it, else generates inline.
+    const filePath = await ensureInvoice(payment.id);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${payment.referenceId}.pdf"`);

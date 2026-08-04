@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { gatewayHttp } = require('../../../config/httpClient');
 const crypto = require('crypto');
 const logger = require('../../../utils/logger');
 
@@ -34,9 +34,9 @@ async function createRazorpayOrder({ amount, currency = 'INR', receipt, notes = 
     receipt: receipt.slice(0, 40),
     notes,
   };
-  logger.info({ body }, '[RAZORPAY] createOrder -> request');
+  logger.debug({ body }, '[RAZORPAY] createOrder -> request');
   return razorpayRequest('createOrder', async () => {
-    const { data } = await axios.post(`${BASE_URL}/orders`, body, {
+    const { data } = await gatewayHttp.post(`${BASE_URL}/orders`, body, {
       headers: { Authorization: authHeader(), 'Content-Type': 'application/json' },
     });
     logger.info({ orderId: data.id, status: data.status }, '[RAZORPAY] createOrder <- response');
@@ -56,9 +56,9 @@ async function initiateRazorpayUpiIntent({ amount, currency = 'INR', razorpayOrd
     upi:          { flow: 'intent' },
     callback_url: callbackUrl || undefined,
   };
-  logger.info({ body }, '[RAZORPAY] initiateUpiIntent -> request');
+  logger.debug({ body }, '[RAZORPAY] initiateUpiIntent -> request');
   return razorpayRequest('initiateUpiIntent', async () => {
-    const { data } = await axios.post(`${BASE_URL}/payments/create/upi`, body, {
+    const { data } = await gatewayHttp.post(`${BASE_URL}/payments/create/upi`, body, {
       headers: { Authorization: authHeader(), 'Content-Type': 'application/json' },
     });
     logger.info({ paymentId: data.razorpay_payment_id }, '[RAZORPAY] initiateUpiIntent <- response');
@@ -71,7 +71,7 @@ async function initiateRazorpayUpiIntent({ amount, currency = 'INR', razorpayOrd
 async function fetchRazorpayOrder(orderId) {
   logger.info({ orderId }, '[RAZORPAY] fetchOrder -> request');
   return razorpayRequest('fetchOrder', async () => {
-    const { data } = await axios.get(`${BASE_URL}/orders/${orderId}`, {
+    const { data } = await gatewayHttp.get(`${BASE_URL}/orders/${orderId}`, {
       headers: { Authorization: authHeader() },
     });
     logger.info({ orderId, status: data.status, amountPaid: data.amount_paid }, '[RAZORPAY] fetchOrder <- response');
@@ -82,7 +82,7 @@ async function fetchRazorpayOrder(orderId) {
 async function fetchOrderPayments(orderId) {
   logger.info({ orderId }, '[RAZORPAY] fetchOrderPayments -> request');
   return razorpayRequest('fetchOrderPayments', async () => {
-    const { data } = await axios.get(`${BASE_URL}/orders/${orderId}/payments`, {
+    const { data } = await gatewayHttp.get(`${BASE_URL}/orders/${orderId}/payments`, {
       headers: { Authorization: authHeader() },
     });
     logger.info({ orderId, count: data.count }, '[RAZORPAY] fetchOrderPayments <- response');
@@ -95,7 +95,7 @@ async function fetchOrderPayments(orderId) {
 async function fetchRazorpayPayment(paymentId) {
   logger.info({ paymentId }, '[RAZORPAY] fetchPayment -> request');
   return razorpayRequest('fetchPayment', async () => {
-    const { data } = await axios.get(`${BASE_URL}/payments/${paymentId}`, {
+    const { data } = await gatewayHttp.get(`${BASE_URL}/payments/${paymentId}`, {
       headers: { Authorization: authHeader() },
     });
     logger.info({ paymentId, status: data.status }, '[RAZORPAY] fetchPayment <- response');

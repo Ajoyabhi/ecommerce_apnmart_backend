@@ -1,48 +1,16 @@
-const axios    = require('axios');
 const { prisma } = require('../../../config/database');
 const logger   = require('../../../utils/logger');
 const {
   createRazorpayOrder,
   initiateRazorpayUpiIntent,
-  fetchRazorpayOrder,
-  fetchOrderPayments,
-  fetchRazorpayPayment,
   verifyRazorpayWebhookSignature,
 } = require('./razorpay.service');
+const { enqueueForward } = require('../../../queues');
 
 function generateRazorpayReceiptId() {
   return `RP${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
     .slice(0, 40)
     .toUpperCase();
-}
-
-// ─── Forward result to AccuzPay ──────────────────────────────────────────────
-async function forwardToAccuzpay(payment, { paymentId, utr, status, errorCode, errorMessage }) {
-  const body = {
-    reference_id: payment.referenceId,
-    status,
-    utr:          utr || null,
-    amount:       parseFloat(payment.amount),
-    payment_id:   paymentId || null,
-    ...(errorCode    && { error_code:    errorCode }),
-    ...(errorMessage && { error_message: errorMessage }),
-  };
-
-  await axios.post(
-    payment.callbackUrl,
-    body,
-    {
-      headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
-      timeout: 10000,
-    }
-  );
-
-  await prisma.razorpayPayment.update({
-    where: { id: payment.id },
-    data:  { status: 'FORWARDED', forwardedAt: new Date() },
-  });
-
-  logger.info({ referenceId: payment.referenceId, status, utr }, '[RAZORPAY] forwarded to AccuzPay OK');
 }
 
 // ─── 1. Initiate payin ────────────────────────────────────────────────────────
@@ -185,22 +153,27 @@ async function handlePaymentCaptured(payload, res) {
     return res.status(200).json({ received: true });
   }
 
-  await prisma.razorpayPayment.update({
-    where: { id: payment.id },
-    data:  { razorpayPaymentId: paymentId, status: 'CAPTURED' },
-  });
-
   const utr = paymentEntity?.acquirer_data?.rrn
            || paymentEntity?.acquirer_data?.utr
            || null;
 
-  logger.info({ referenceId: payment.referenceId, utr, paymentId }, '[RAZORPAY] forwarding to AccuzPay');
+  await prisma.razorpayPayment.update({
+    where: { id: payment.id },
+    data:  { razorpayPaymentId: paymentId, status: 'CAPTURED', utr },
+  });
 
-  try {
-    await forwardToAccuzpay(payment, { paymentId, utr, status: 'TXN' });
-  } catch (fwdErr) {
-    logger.error(`[RAZORPAY] forward to AccuzPay failed — ${fwdErr.message} — will retry on next webhook`);
-  }
+  logger.info({ referenceId: payment.referenceId, utr, paymentId }, '[RAZORPAY] queueing forward to AccuzPay');
+
+  await enqueueForward({
+    gateway:           'razorpay',
+    paymentId:         payment.id,
+    referenceId:       payment.referenceId,
+    callbackUrl:       payment.callbackUrl,
+    amount:            parseFloat(payment.amount),
+    status:            'TXN',
+    utr,
+    paymentIdExternal: paymentId,
+  });
 
   return res.status(200).json({ received: true });
 }
@@ -226,11 +199,18 @@ async function handlePaymentFailed(payload, res) {
 
   logger.info(`[RAZORPAY] payment.failed — referenceId=${payment.referenceId} error=${errorCode}`);
 
-  try {
-    await forwardToAccuzpay(payment, { paymentId, utr: null, status: 'FAILED', errorCode, errorMessage });
-  } catch (fwdErr) {
-    logger.error(`[RAZORPAY] forward failed payment to AccuzPay failed — ${fwdErr.message}`);
-  }
+  await enqueueForward({
+    gateway:           'razorpay',
+    paymentId:         payment.id,
+    referenceId:       payment.referenceId,
+    callbackUrl:       payment.callbackUrl,
+    amount:            parseFloat(payment.amount),
+    status:            'FAILED',
+    utr:               null,
+    paymentIdExternal: paymentId,
+    errorCode,
+    errorMessage,
+  });
 
   return res.status(200).json({ received: true });
 }
@@ -248,51 +228,10 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    let liveStatus    = payment.status;
-    let utr           = null;
-    let razorpayPaymentId = payment.razorpayPaymentId;
-
-    // If still pending, poll Razorpay order for live status
-    if (payment.status === 'PENDING' && payment.razorpayOrderId) {
-      try {
-        const orderPayments = await fetchOrderPayments(payment.razorpayOrderId);
-        const captured = orderPayments?.items?.find(p => p.status === 'captured');
-        const failed   = orderPayments?.items?.find(p => p.status === 'failed');
-
-        if (captured) {
-          liveStatus        = 'CAPTURED';
-          razorpayPaymentId = captured.id;
-          utr               = captured.acquirer_data?.rrn || captured.acquirer_data?.utr || null;
-
-          await prisma.razorpayPayment.update({
-            where: { id: payment.id },
-            data:  { status: 'CAPTURED', razorpayPaymentId: captured.id },
-          });
-        } else if (failed) {
-          liveStatus        = 'FAILED';
-          razorpayPaymentId = failed.id;
-
-          await prisma.razorpayPayment.update({
-            where: { id: payment.id },
-            data:  { status: 'FAILED', razorpayPaymentId: failed.id },
-          });
-        }
-      } catch (err) {
-        logger.warn(`[RAZORPAY] checkTransaction: order payments poll failed — ${err.message}`);
-      }
-    }
-
-    // If captured/forwarded and no UTR yet, fetch from payment
-    if ((liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') && !utr && razorpayPaymentId) {
-      try {
-        const livePayment = await fetchRazorpayPayment(razorpayPaymentId);
-        utr = livePayment?.acquirer_data?.rrn || livePayment?.acquirer_data?.utr || null;
-      } catch (err) {
-        logger.warn(`[RAZORPAY] checkTransaction: payment fetch failed — ${err.message}`);
-      }
-    }
-
+    // Return DB state — kept current by the (HMAC-verified) webhook. No live gateway call.
+    const liveStatus     = payment.status;
     const accuzpayStatus = (liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') ? 'TXN' : liveStatus;
+    const utr            = (liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') ? payment.utr : null;
 
     return res.status(200).json({
       success:              true,
@@ -300,7 +239,7 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
       status:               accuzpayStatus,
       razorpay_status:      liveStatus,
       razorpay_order_id:    payment.razorpayOrderId,
-      razorpay_payment_id:  razorpayPaymentId,
+      razorpay_payment_id:  payment.razorpayPaymentId,
       upi_intent_uri:       payment.upiIntentUri,
       forwarded:            payment.status === 'FORWARDED',
       amount:               parseFloat(payment.amount),

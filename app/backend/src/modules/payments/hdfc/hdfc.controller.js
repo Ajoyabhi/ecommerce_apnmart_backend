@@ -3,6 +3,7 @@ const logger = require('../../../utils/logger');
 const { onOrderPlaced } = require('../../../services/orderEmail.service');
 const { generateInvoiceAsync } = require('../../../services/invoice.service');
 const { createHdfcOrder, initiateUpiIntent, buildUpiIntentUri, getHdfcOrderStatus } = require('./hdfc.service');
+const { gatewayHttp } = require('../../../config/httpClient');
 
 const FRONTEND_URL = process.env.CUSTOMER_FRONTEND_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -226,7 +227,6 @@ exports.handleWebhook = async (req, res, next) => {
             // Forward to PayVex/Accuzpay callback URL
             // PayVex hdfcCallback expects: POST { reference_id, status, utr, amount } + header x-api-key
             try {
-                const axios = require('axios');
                 const callbackPayload = {
                     reference_id: accuzpayPayment.referenceId,
                     status:       accuzpayStatus,      // 'TXN' (success) or 'FAILED'
@@ -234,7 +234,7 @@ exports.handleWebhook = async (req, res, next) => {
                     amount:       parseFloat(accuzpayPayment.amount),
                 };
                 logger.info({ callbackUrl: accuzpayPayment.callbackUrl, callbackPayload }, '[HDFC] webhook: forwarding to PayVex');
-                await axios.post(
+                await gatewayHttp.post(
                     accuzpayPayment.callbackUrl,
                     callbackPayload,
                     {

@@ -44,7 +44,19 @@ npm run build
 echo "=== Starting backend with pm2 (name: ecommerce-backend) ==="
 cd "${ROOT_DIR}/app/backend"
 pm2 delete ecommerce-backend >/dev/null 2>&1 || true
-pm2 start npm --name ecommerce-backend -- start
+# Cluster mode. The payin path is I/O-bound (mostly awaiting the gateway), so a
+# few workers hold plenty of concurrent in-flight requests. This box has 4 vCPU
+# shared with Postgres + MongoDB + Redis, so we deliberately DON'T take all 4 —
+# 3 workers for Node, ~1 core left for the datastores. Bump to `max` only if you
+# move the databases off this box. Point pm2 at server.js (not `npm`) so -i works.
+pm2 start src/server.js -i 3 --name ecommerce-backend
+
+echo "=== Starting background worker with pm2 (name: ecommerce-worker) ==="
+# Dedicated process for BullMQ jobs (downstream forward + invoice generation),
+# kept separate from the web workers so background load never blocks payin traffic.
+# Single fork instance; scale with FORWARD_CONCURRENCY / INVOICE_CONCURRENCY env vars.
+pm2 delete ecommerce-worker >/dev/null 2>&1 || true
+pm2 start src/worker.js --name ecommerce-worker
 
 echo "=== Starting frontend preview with pm2 (name: ecommerce-frontend) ==="
 cd "${ROOT_DIR}/app/Frontend/UrbanKart"
@@ -58,3 +70,4 @@ echo "Deployment complete."
 echo "Backend should be reachable on the port configured in backend .env (default: 5009)."
 echo "Frontend should be reachable on http://<your-vps-ip>:5008 (or via your reverse proxy/domain)."
 
+pm2 logs ecommerce-backend --lines 30 --nostream
