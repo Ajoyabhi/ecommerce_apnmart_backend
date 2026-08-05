@@ -460,8 +460,8 @@ export default function Home() {
           )}
         </div>
 
-        {/* Home decor */}
-        <div>
+        {/* Home decor — temporarily hidden from homepage */}
+        {/* <div>
           <div className="flex items-end justify-between mb-8">
             <div>
               <h2 className="font-display font-bold text-3xl">
@@ -490,7 +490,7 @@ export default function Home() {
               Home decor products will appear here once seeded.
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Boys & Girls fashion */}
         <div>
@@ -524,8 +524,8 @@ export default function Home() {
           )}
         </div>
 
-        {/* Footwear */}
-        <div>
+        {/* Footwear — temporarily hidden from homepage */}
+        {/* <div>
           <div className="flex items-end justify-between mb-8">
             <div>
               <h2 className="font-display font-bold text-3xl">
@@ -562,7 +562,7 @@ export default function Home() {
               Footwear products will appear here once seeded.
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Home decor */}
         {/* <div>
