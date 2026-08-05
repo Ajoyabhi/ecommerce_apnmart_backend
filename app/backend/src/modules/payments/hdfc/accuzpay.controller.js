@@ -213,6 +213,7 @@ exports.listAccuzpayTransactions = async (req, res, next) => {
     if (search) {
       where.OR = [
         { referenceId:   { contains: search, mode: 'insensitive' } },
+        { txnId:         { contains: search, mode: 'insensitive' } },
         { customerName:  { contains: search, mode: 'insensitive' } },
         { customerEmail: { contains: search, mode: 'insensitive' } },
       ];
@@ -226,7 +227,7 @@ exports.listAccuzpayTransactions = async (req, res, next) => {
         take:    parseInt(limit),
         orderBy: { createdAt: 'desc' },
         select: {
-          id: true, referenceId: true, hdfcOrderId: true, amount: true,
+          id: true, referenceId: true, txnId: true, hdfcOrderId: true, amount: true,
           status: true, customerName: true, customerEmail: true,
           customerPhone: true, upiIntentUri: true, createdAt: true,
           _count: { select: { items: true } },

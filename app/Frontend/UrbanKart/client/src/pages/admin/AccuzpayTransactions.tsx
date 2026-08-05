@@ -483,7 +483,7 @@ export default function AccuzpayTransactions() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search ref ID, customer…"
+              placeholder="Search ref ID, transaction ID, customer…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm bg-muted rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -549,6 +549,7 @@ export default function AccuzpayTransactions() {
                 <thead className="bg-muted/50">
                   <tr className="text-muted-foreground text-xs uppercase tracking-wide">
                     <th className="text-left px-4 py-3">Reference</th>
+                    <th className="text-left px-4 py-3">Transaction ID</th>
                     <th className="text-left px-4 py-3">Customer</th>
                     <th className="text-right px-4 py-3">Amount</th>
                     <th className="text-center px-4 py-3">Status</th>
@@ -567,6 +568,9 @@ export default function AccuzpayTransactions() {
                       >
                         <td className="px-4 py-3">
                           <span className="font-mono text-xs">{txn.referenceId}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs break-all">{txn.txnId ?? "—"}</span>
                         </td>
                         <td className="px-4 py-3">
                           <div>{txn.customerName ?? "—"}</div>
