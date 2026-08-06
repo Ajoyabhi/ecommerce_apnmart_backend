@@ -23,7 +23,7 @@ if ! command -v pm2 >/dev/null 2>&1; then
 fi
 
 # echo "=== Backend: installing dependencies ==="
-# cd "${ROOT_DIR}/app/backend"
+cd "${ROOT_DIR}/app/backend"
 # npm install
 
 echo "=== Backend: pushing Prisma schema to PostgreSQL (prisma db push) ==="
@@ -35,7 +35,7 @@ else
 fi
 
 # echo "=== Frontend: installing dependencies ==="
-# cd "${ROOT_DIR}/app/Frontend/UrbanKart"
+cd "${ROOT_DIR}/app/Frontend/UrbanKart"
 # npm install
 
 echo "=== Frontend: building Vite client ==="
