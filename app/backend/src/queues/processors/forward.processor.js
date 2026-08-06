@@ -7,6 +7,7 @@ const MODEL_BY_GATEWAY = {
   hdfc:     'accuzpayPayment',
   airpay:   'airpayPayment',
   razorpay: 'razorpayPayment',
+  payout:   'payoutTransaction',
 };
 
 /**

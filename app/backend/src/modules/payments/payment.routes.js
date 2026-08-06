@@ -19,4 +19,7 @@ router.use('/razorpay', require('./razorpay/razorpay.routes'));
 // AirPay — Accuzpay downstream integration
 router.use('/airpay', require('./airpay/airpay.routes'));
 
+// Payout / disbursement — Accuzpay-driven, provider-agnostic ("the bird")
+router.use('/payout', require('./payout/payout.routes'));
+
 module.exports = router;

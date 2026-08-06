@@ -381,6 +381,48 @@ model AirpayPayment {
   @@index([createdAt])
 }
 
+model PayoutTransaction {
+  id                String    @id @default(uuid())
+
+  referenceId       String    @unique   // AccuzPay's reference_id
+  payoutOrderId     String    @unique   // transaction_id sent to MizorPay (≤30 chars)
+  providerPayoutId  String?   @unique   // mizor_pay_txn_id (MZ...) once known
+  utr               String?             // bank UTR once disbursed
+  bankTxnId         String?             // MizorPay bank_txn_id
+
+  customerId        String?             // AccuzPay does not send this for payouts
+  amount            Decimal   @db.Decimal(10, 2)
+  currency          String    @default("INR")
+  mode              String?             // request_type: IMPS | NEFT | RTGS
+  purpose           String?
+
+  // Beneficiary — bank transfer (MizorPay is bank-only, no UPI)
+  beneficiaryName     String?
+  beneficiaryAccount  String?
+  beneficiaryIfsc     String?
+  beneficiaryBankName String?           // human bank name from AccuzPay (e.g. "PUNJAB BANK")
+  beneficiaryVpa      String?           // reserved (unused by MizorPay)
+  beneficiaryPhone    String?
+  beneficiaryEmail    String?
+
+  status            String    @default("PENDING") // PENDING | PROCESSING | SUCCESS | FAILED | REVERSED | FORWARDED
+  failureReason     String?
+  refundStatus      String?             // MizorPay refund_status / refunded (YES/NO/PENDING)
+  callbackUrl       String
+
+  providerRaw       Json?               // raw provider request/webhook payloads (debug)
+  forwardedAt       DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([referenceId])
+  @@index([payoutOrderId])
+  @@index([providerPayoutId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model CodOtp {
   id         String    @id @default(uuid())
   userId     String
