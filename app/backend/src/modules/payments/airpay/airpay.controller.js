@@ -105,7 +105,7 @@ exports.handleAirpayIpn = async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    if (payment.status === 'FORWARDED') {
+    if (payment.forwardedAt) {
       logger.info(`[AIRPAY] IPN: already forwarded — referenceId=${payment.referenceId}`);
       return res.status(200).json({ received: true });
     }
@@ -162,9 +162,13 @@ exports.checkAirpayTransaction = async (req, res, next) => {
     }
 
     // Return DB state — kept current by the (trusted) IPN. No live gateway call.
+    // `status` now holds the real AirPay outcome (no longer clobbered with the FORWARDED
+    // sentinel); delivery is tracked separately via forwardedAt.
     const dbStatus    = payment.status;
-    const accuzStatus = (dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED') ? 'TXN' : dbStatus;
-    const utr         = (dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED') ? payment.utr : null;
+    // Legacy rows may still carry 'FORWARDED' (original outcome unrecoverable) — treat as success.
+    const isSuccess   = dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED';
+    const accuzStatus = isSuccess ? 'TXN' : dbStatus;  // 'FAILED'/'PENDING' pass through as-is
+    const utr         = isSuccess ? payment.utr : null;
 
     const responseBody = {
       success:           true,
@@ -173,14 +177,13 @@ exports.checkAirpayTransaction = async (req, res, next) => {
       airpay_status:     dbStatus,
       airpay_order_id:   payment.airpayOrderId,
       ap_transaction_id: payment.apTransactionId,
-      forwarded:         dbStatus === 'FORWARDED',
+      forwarded:         !!payment.forwardedAt,
       amount:            parseFloat(payment.amount),
       utr,
     };
 
     // Downstream transaction-check response — logged gateway-wise for visibility.
     logger.info(`[AIRPAY-ACCUZPAY] checkTransaction <- response: ${JSON.stringify(responseBody)}`);
-    console.log('[AIRPAY-ACCUZPAY] checkTransaction <- response:', JSON.stringify(responseBody, null, 2));
 
     return res.status(200).json(responseBody);
   } catch (error) {

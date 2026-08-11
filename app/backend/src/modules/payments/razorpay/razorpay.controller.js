@@ -148,7 +148,7 @@ async function handlePaymentCaptured(payload, res) {
     return res.status(200).json({ received: true });
   }
 
-  if (payment.status === 'FORWARDED') {
+  if (payment.forwardedAt) {
     logger.info(`[RAZORPAY] payment.captured: already forwarded — referenceId=${payment.referenceId}`);
     return res.status(200).json({ received: true });
   }
@@ -190,7 +190,7 @@ async function handlePaymentFailed(payload, res) {
   const payment = await prisma.razorpayPayment.findUnique({ where: { razorpayOrderId: orderId } });
   if (!payment) return res.status(200).json({ received: true });
 
-  if (payment.status === 'FORWARDED') return res.status(200).json({ received: true });
+  if (payment.forwardedAt) return res.status(200).json({ received: true });
 
   await prisma.razorpayPayment.update({
     where: { id: payment.id },
@@ -229,9 +229,13 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
     }
 
     // Return DB state — kept current by the (HMAC-verified) webhook. No live gateway call.
+    // `status` now holds the real Razorpay outcome (no longer clobbered with the FORWARDED
+    // sentinel); delivery is tracked separately via forwardedAt.
     const liveStatus     = payment.status;
-    const accuzpayStatus = (liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') ? 'TXN' : liveStatus;
-    const utr            = (liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') ? payment.utr : null;
+    // Legacy rows may still carry 'FORWARDED' (original outcome unrecoverable) — treat as success.
+    const isSuccess      = liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED';
+    const accuzpayStatus = isSuccess ? 'TXN' : liveStatus;  // 'FAILED'/'PENDING' pass through as-is
+    const utr            = isSuccess ? payment.utr : null;
 
     const responseBody = {
       success:              true,
@@ -241,14 +245,13 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
       razorpay_order_id:    payment.razorpayOrderId,
       razorpay_payment_id:  payment.razorpayPaymentId,
       upi_intent_uri:       payment.upiIntentUri,
-      forwarded:            payment.status === 'FORWARDED',
+      forwarded:            !!payment.forwardedAt,
       amount:               parseFloat(payment.amount),
       utr,
     };
 
     // Downstream transaction-check response — logged gateway-wise for visibility.
     logger.info(`[RAZORPAY] checkTransaction <- response: ${JSON.stringify(responseBody)}`);
-    console.log('[RAZORPAY] checkTransaction <- response:', JSON.stringify(responseBody, null, 2));
 
     return res.status(200).json(responseBody);
   } catch (error) {

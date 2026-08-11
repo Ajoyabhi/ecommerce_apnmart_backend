@@ -110,7 +110,7 @@ exports.handlePgNotify = async (req, res, next) => {
       return res.status(200).json({ received: true });
     }
 
-    if (payment.status === 'FORWARDED') {
+    if (payment.forwardedAt) {
       logger.info(`[HDFC-ACCUZPAY] pg-notify: already forwarded — hdfcOrderId=${hdfcOrderId}`);
       return res.status(200).json({ received: true });
     }
@@ -178,15 +178,21 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
     }
 
     // Return DB state — kept current by the (trusted) webhook. No live gateway call.
-    const liveStatus     = payment.status;
-    const accuzpayStatus = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? 'TXN' : liveStatus;
-    const utr            = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? payment.utr : null;
+    // `status` now holds the real HDFC/Juspay outcome (we no longer clobber it with the
+    // FORWARDED delivery sentinel); forwarding is tracked separately via forwardedAt.
+    const hdfcStatus     = payment.status;
+    const FAILURE        = ['AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'];
+    // Legacy rows may still carry 'FORWARDED' (original terminal status unrecoverable) — treat as success.
+    const isSuccess      = hdfcStatus === 'CHARGED' || hdfcStatus === 'FORWARDED';
+    const accuzpayStatus = isSuccess ? 'TXN' : FAILURE.includes(hdfcStatus) ? 'FAILED' : hdfcStatus;
+    const utr            = isSuccess ? payment.utr : null;
 
     const responseBody = {
       success:      true,
       reference_id: payment.referenceId,
       status:       accuzpayStatus,
-      hdfc_status:  liveStatus,
+      hdfc_status:  hdfcStatus,
+      forwarded:    !!payment.forwardedAt,
       amount:       parseFloat(payment.amount),
       utr,
       hdfcOrderId:  payment.hdfcOrderId,
@@ -194,7 +200,6 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
 
     // Downstream transaction-check response — logged gateway-wise for visibility.
     logger.info(`[HDFC-ACCUZPAY] checkTransaction <- response: ${JSON.stringify(responseBody)}`);
-    console.log('[HDFC-ACCUZPAY] checkTransaction <- response:', JSON.stringify(responseBody, null, 2));
 
     return res.status(200).json(responseBody);
   } catch (error) {

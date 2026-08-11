@@ -200,7 +200,7 @@ exports.handleWebhook = async (req, res, next) => {
         if (accuzpayPayment) {
             logger.info({ hdfcOrderId, hdfcStatus }, '[HDFC] webhook → routing to AccuzpayPayment handler');
 
-            if (accuzpayPayment.status === 'FORWARDED') {
+            if (accuzpayPayment.forwardedAt) {
                 logger.info(`[HDFC] webhook: accuzpay ${hdfcOrderId} already forwarded — skipping`);
                 return res.status(200).json({ received: true });
             }
@@ -242,7 +242,8 @@ exports.handleWebhook = async (req, res, next) => {
                         timeout: 10000,
                     }
                 );
-                await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { status: 'FORWARDED', forwardedAt: new Date() } });
+                // Keep the real HDFC status (set above); mark delivery via forwardedAt only.
+                await prisma.accuzpayPayment.update({ where: { hdfcOrderId }, data: { forwardedAt: new Date() } });
                 logger.info(`[HDFC] webhook: accuzpay forwarded ✅ — referenceId=${accuzpayPayment.referenceId} status=${accuzpayStatus} utr=${hdfcUtr}`);
             } catch (fwdErr) {
                 logger.error(`[HDFC] webhook: accuzpay forward failed — ${fwdErr.message}`);

@@ -12,7 +12,7 @@ const MODEL_BY_GATEWAY = {
 
 /**
  * Forward a confirmed/failed payment result to the AccuzPay callback URL.
- * Idempotent: if the row is already FORWARDED, it no-ops. On a non-2xx / network
+ * Idempotent: if the row already has forwardedAt set, it no-ops. On a non-2xx / network
  * error it throws, so BullMQ retries with backoff.
  *
  * job.data = {
@@ -38,7 +38,7 @@ async function processForward(job) {
     logger.warn(`[FORWARD] ${gateway}: payment ${paymentId} not found — dropping job`);
     return; // nothing to forward; don't retry
   }
-  if (current.status === 'FORWARDED') {
+  if (current.forwardedAt) {
     logger.info(`[FORWARD] ${gateway}: referenceId=${referenceId} already forwarded — skip`);
     return;
   }
@@ -54,17 +54,17 @@ async function processForward(job) {
     ...(errorMessage      && { error_message:     errorMessage }),
   };
 
-  // Downstream forward payload — logged gateway-wise so we can see exactly what's sent.
-  console.log(`[FORWARD] ${gateway} -> downstream POST ${callbackUrl}:`, JSON.stringify(body, null, 2));
-
   await gatewayHttp.post(callbackUrl, body, {
     headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
     timeout: 10000,
   });
 
+  // Mark delivery via forwardedAt only — do NOT overwrite `status`, which must keep
+  // the real gateway outcome (CHARGED/CAPTURED/SUCCESS vs a failure code) so the
+  // check-status API can report success vs failure correctly after forwarding.
   await prisma[model].update({
     where: { id: paymentId },
-    data:  { status: 'FORWARDED', forwardedAt: new Date() },
+    data:  { forwardedAt: new Date() },
   });
 
   logger.info(`[FORWARD] ${gateway}: referenceId=${referenceId} status=${status} forwarded OK`);

@@ -143,7 +143,7 @@ exports.handlePayoutWebhook = async (req, res) => {
       logger.warn(`[PAYOUT] callback: no record for txn_id=${txnId}`);
       return res.status(200).json({ received: true });
     }
-    if (payout.status === 'FORWARDED') {
+    if (payout.forwardedAt) {
       logger.info(`[PAYOUT] callback: already forwarded — referenceId=${payout.referenceId}`);
       return res.status(200).json({ received: true });
     }
@@ -225,7 +225,10 @@ exports.checkPayoutTransaction = async (req, res, next) => {
       }
     }
 
+    // `status` now holds the real MizorPay outcome (no longer clobbered with the FORWARDED
+    // sentinel); delivery is tracked separately via forwardedAt.
     const dbStatus  = payout.status;
+    // Legacy rows may still carry 'FORWARDED' (original outcome unrecoverable) — treat as success.
     const isSuccess = dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED';
 
     return res.status(200).json({
@@ -235,7 +238,7 @@ exports.checkPayoutTransaction = async (req, res, next) => {
       payout_status:      dbStatus,
       payout_order_id:    payout.payoutOrderId,
       provider_payout_id: payout.providerPayoutId,
-      forwarded:          dbStatus === 'FORWARDED',
+      forwarded:          !!payout.forwardedAt,
       amount:             parseFloat(payout.amount),
       utr:                isSuccess ? payout.utr : null,
       bank_txn_id:        payout.bankTxnId,

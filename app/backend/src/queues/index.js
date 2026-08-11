@@ -34,7 +34,7 @@ const invoiceQueue = new Queue(QUEUE_NAMES.INVOICE, {
 /**
  * Enqueue a forward-to-AccuzPay job. Trusts the status/utr already derived from
  * the (trusted) webhook payload — the worker just does the downstream POST +
- * marks the row FORWARDED, with automatic retry/backoff.
+ * stamps the row's forwardedAt, with automatic retry/backoff.
  *
  * jobId = `${gateway}__${referenceId}` so duplicate webhooks for the same txn
  * collapse to a single in-flight job (idempotent enqueue). Note: BullMQ reserves
