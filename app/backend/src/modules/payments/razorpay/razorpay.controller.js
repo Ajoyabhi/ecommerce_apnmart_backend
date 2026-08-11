@@ -233,7 +233,7 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
     const accuzpayStatus = (liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') ? 'TXN' : liveStatus;
     const utr            = (liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED') ? payment.utr : null;
 
-    return res.status(200).json({
+    const responseBody = {
       success:              true,
       reference_id:         payment.referenceId,
       status:               accuzpayStatus,
@@ -244,7 +244,13 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
       forwarded:            payment.status === 'FORWARDED',
       amount:               parseFloat(payment.amount),
       utr,
-    });
+    };
+
+    // Downstream transaction-check response — logged gateway-wise for visibility.
+    logger.info(`[RAZORPAY] checkTransaction <- response: ${JSON.stringify(responseBody)}`);
+    console.log('[RAZORPAY] checkTransaction <- response:', JSON.stringify(responseBody, null, 2));
+
+    return res.status(200).json(responseBody);
   } catch (error) {
     logger.error(`[RAZORPAY] checkTransaction error: ${error.message}`);
     next(error);

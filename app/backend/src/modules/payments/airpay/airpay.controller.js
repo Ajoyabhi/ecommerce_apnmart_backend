@@ -166,7 +166,7 @@ exports.checkAirpayTransaction = async (req, res, next) => {
     const accuzStatus = (dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED') ? 'TXN' : dbStatus;
     const utr         = (dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED') ? payment.utr : null;
 
-    return res.status(200).json({
+    const responseBody = {
       success:           true,
       reference_id:      payment.referenceId,
       status:            accuzStatus,
@@ -176,7 +176,13 @@ exports.checkAirpayTransaction = async (req, res, next) => {
       forwarded:         dbStatus === 'FORWARDED',
       amount:            parseFloat(payment.amount),
       utr,
-    });
+    };
+
+    // Downstream transaction-check response — logged gateway-wise for visibility.
+    logger.info(`[AIRPAY-ACCUZPAY] checkTransaction <- response: ${JSON.stringify(responseBody)}`);
+    console.log('[AIRPAY-ACCUZPAY] checkTransaction <- response:', JSON.stringify(responseBody, null, 2));
+
+    return res.status(200).json(responseBody);
   } catch (error) {
     logger.error(`[AIRPAY-ACCUZPAY] checkTransaction error: ${error.message}`);
     next(error);

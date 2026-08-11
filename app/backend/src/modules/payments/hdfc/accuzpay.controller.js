@@ -182,7 +182,7 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
     const accuzpayStatus = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? 'TXN' : liveStatus;
     const utr            = liveStatus === 'CHARGED' || liveStatus === 'FORWARDED' ? payment.utr : null;
 
-    return res.status(200).json({
+    const responseBody = {
       success:      true,
       reference_id: payment.referenceId,
       status:       accuzpayStatus,
@@ -190,7 +190,13 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
       amount:       parseFloat(payment.amount),
       utr,
       hdfcOrderId:  payment.hdfcOrderId,
-    });
+    };
+
+    // Downstream transaction-check response — logged gateway-wise for visibility.
+    logger.info(`[HDFC-ACCUZPAY] checkTransaction <- response: ${JSON.stringify(responseBody)}`);
+    console.log('[HDFC-ACCUZPAY] checkTransaction <- response:', JSON.stringify(responseBody, null, 2));
+
+    return res.status(200).json(responseBody);
   } catch (error) {
     logger.error(`[HDFC-ACCUZPAY] checkTransaction error: ${error.message}`);
     next(error);

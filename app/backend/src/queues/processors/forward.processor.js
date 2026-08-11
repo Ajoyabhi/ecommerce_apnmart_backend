@@ -54,6 +54,9 @@ async function processForward(job) {
     ...(errorMessage      && { error_message:     errorMessage }),
   };
 
+  // Downstream forward payload — logged gateway-wise so we can see exactly what's sent.
+  console.log(`[FORWARD] ${gateway} -> downstream POST ${callbackUrl}:`, JSON.stringify(body, null, 2));
+
   await gatewayHttp.post(callbackUrl, body, {
     headers: { 'x-api-key': process.env.ACCUZPAY_SHARED_SECRET, 'Content-Type': 'application/json' },
     timeout: 10000,
