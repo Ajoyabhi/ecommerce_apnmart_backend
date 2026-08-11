@@ -103,6 +103,38 @@ async function fetchRazorpayPayment(paymentId) {
   });
 }
 
+/**
+ * Live status of a Razorpay order, normalized for the transaction-check API.
+ * Combines the order status with its payments (a payment-level `captured`/`failed`
+ * is authoritative over the order's coarse status). Returns:
+ *   { rawStatus, dbStatus: 'CAPTURED'|'FAILED'|'PENDING', utr, paymentId, raw }
+ */
+async function getRazorpayLiveStatus(orderId) {
+  const [order, payments] = await Promise.all([
+    fetchRazorpayOrder(orderId),
+    fetchOrderPayments(orderId),
+  ]);
+
+  const items    = payments?.items || [];
+  const captured = items.find(p => p.status === 'captured');
+  const failed   = items.find(p => p.status === 'failed');
+
+  let dbStatus  = 'PENDING';
+  let utr       = null;
+  let paymentId = null;
+
+  if (captured || order?.status === 'paid') {
+    dbStatus  = 'CAPTURED';
+    utr       = captured?.acquirer_data?.rrn || captured?.acquirer_data?.utr || null;
+    paymentId = captured?.id || null;
+  } else if (failed) {
+    dbStatus  = 'FAILED';
+    paymentId = failed.id || null;
+  }
+
+  return { rawStatus: order?.status || 'unknown', dbStatus, utr, paymentId, raw: { order, payments } };
+}
+
 function verifyRazorpayWebhookSignature(rawBody, signatureHeader) {
   if (!signatureHeader) return false;
   const expected = crypto
@@ -122,5 +154,6 @@ module.exports = {
   fetchRazorpayOrder,
   fetchOrderPayments,
   fetchRazorpayPayment,
+  getRazorpayLiveStatus,
   verifyRazorpayWebhookSignature,
 };

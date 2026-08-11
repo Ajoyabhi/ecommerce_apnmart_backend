@@ -1,6 +1,6 @@
 const { prisma } = require('../../../config/database');
 const logger   = require('../../../utils/logger');
-const { generateAirpayQr, airpayDecrypt } = require('./airpay.service');
+const { generateAirpayQr, airpayDecrypt, verifyAirpayPayment } = require('./airpay.service');
 const { enqueueForward } = require('../../../queues');
 
 // Generates a unique internal orderid for AirPay (≤30 alphanumeric chars)
@@ -161,14 +161,59 @@ exports.checkAirpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Return DB state — kept current by the (trusted) IPN. No live gateway call.
-    // `status` now holds the real AirPay outcome (no longer clobbered with the FORWARDED
-    // sentinel); delivery is tracked separately via forwardedAt.
-    const dbStatus    = payment.status;
+    // Live pass-through: verify with AirPay on every hit, return that, and sync the DB if it
+    // changed. Falls back to stored DB state if the live call fails so the endpoint stays up.
+    let dbStatus        = payment.status;
+    let utr             = payment.utr;
+    let apTransactionId = payment.apTransactionId;
+
+    try {
+      const decrypted = await verifyAirpayPayment(payment.airpayOrderId);
+      logger.info(`[AIRPAY-ACCUZPAY] checkTransaction: live verify raw: ${JSON.stringify(decrypted)}`);
+
+      const src       = decrypted?.data || decrypted || {};
+      const txnStatus = String(
+        src.transaction_payment_status || decrypted?.transaction_payment_status || src.TRANSACTIONSTATUS || 'UNKNOWN'
+      ).toUpperCase();
+      const liveUtr   = src.rrn || src.utr || src.bank_ref_no || null;
+      const liveApTxn = src.ap_transactionid || payment.apTransactionId || null;
+
+      const liveDbStatus = txnStatus === 'SUCCESS' ? 'SUCCESS' : txnStatus === 'FAILED' ? 'FAILED' : 'PENDING';
+
+      dbStatus        = liveDbStatus;
+      utr             = liveDbStatus === 'SUCCESS' ? (liveUtr || payment.utr) : payment.utr;
+      apTransactionId = liveApTxn;
+
+      // Sync DB when the live view differs from what we stored.
+      if (liveDbStatus !== payment.status || (utr && utr !== payment.utr) || (apTransactionId && apTransactionId !== payment.apTransactionId)) {
+        await prisma.airpayPayment.update({
+          where: { id: payment.id },
+          data:  { status: liveDbStatus, utr: utr || null, ...(apTransactionId && { apTransactionId }), airpayRaw: decrypted },
+        });
+        logger.info(`[AIRPAY-ACCUZPAY] checkTransaction: DB synced ${payment.status} -> ${liveDbStatus} (ref=${reference_id})`);
+      }
+
+      // AirPay only forwards successful payments (mirrors the IPN handler). Forward once, if unforwarded.
+      if (!payment.forwardedAt && liveDbStatus === 'SUCCESS') {
+        await enqueueForward({
+          gateway:         'airpay',
+          paymentId:       payment.id,
+          referenceId:     payment.referenceId,
+          callbackUrl:     payment.callbackUrl,
+          amount:          parseFloat(payment.amount),
+          status:          'TXN',
+          utr:             utr || null,
+          apTransactionId: apTransactionId || null,
+        });
+      }
+    } catch (err) {
+      logger.warn(`[AIRPAY-ACCUZPAY] checkTransaction: live verify failed for ${reference_id} — ${err.message}; returning DB state`);
+    }
+
     // Legacy rows may still carry 'FORWARDED' (original outcome unrecoverable) — treat as success.
     const isSuccess   = dbStatus === 'SUCCESS' || dbStatus === 'FORWARDED';
     const accuzStatus = isSuccess ? 'TXN' : dbStatus;  // 'FAILED'/'PENDING' pass through as-is
-    const utr         = isSuccess ? payment.utr : null;
+    const respUtr     = isSuccess ? utr : null;
 
     const responseBody = {
       success:           true,
@@ -176,10 +221,10 @@ exports.checkAirpayTransaction = async (req, res, next) => {
       status:            accuzStatus,
       airpay_status:     dbStatus,
       airpay_order_id:   payment.airpayOrderId,
-      ap_transaction_id: payment.apTransactionId,
+      ap_transaction_id: apTransactionId,
       forwarded:         !!payment.forwardedAt,
       amount:            parseFloat(payment.amount),
-      utr,
+      utr:               respUtr,
     };
 
     // Downstream transaction-check response — logged gateway-wise for visibility.

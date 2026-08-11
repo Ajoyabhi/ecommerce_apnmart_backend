@@ -3,6 +3,7 @@ const logger   = require('../../../utils/logger');
 const {
   createRazorpayOrder,
   initiateRazorpayUpiIntent,
+  getRazorpayLiveStatus,
   verifyRazorpayWebhookSignature,
 } = require('./razorpay.service');
 const { enqueueForward } = require('../../../queues');
@@ -228,26 +229,63 @@ exports.checkRazorpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Return DB state — kept current by the (HMAC-verified) webhook. No live gateway call.
-    // `status` now holds the real Razorpay outcome (no longer clobbered with the FORWARDED
-    // sentinel); delivery is tracked separately via forwardedAt.
-    const liveStatus     = payment.status;
+    // Live pass-through: query Razorpay on every hit, return that, and sync the DB if it
+    // changed. Falls back to stored DB state if the live call fails so the endpoint stays up.
+    let dbStatus  = payment.status;
+    let utr       = payment.utr;
+    let paymentIdExternal = payment.razorpayPaymentId;
+
+    try {
+      const live = await getRazorpayLiveStatus(payment.razorpayOrderId);
+      logger.info(`[RAZORPAY] checkTransaction: live status raw=${live.rawStatus} -> ${live.dbStatus} (ref=${reference_id})`);
+
+      dbStatus          = live.dbStatus;
+      utr               = live.utr || payment.utr;
+      paymentIdExternal = live.paymentId || payment.razorpayPaymentId;
+
+      // Sync DB when the live view differs from what we stored.
+      if (dbStatus !== payment.status || (utr && utr !== payment.utr) || (paymentIdExternal && paymentIdExternal !== payment.razorpayPaymentId)) {
+        await prisma.razorpayPayment.update({
+          where: { id: payment.id },
+          data:  { status: dbStatus, utr: utr || null, ...(paymentIdExternal && { razorpayPaymentId: paymentIdExternal }) },
+        });
+        logger.info(`[RAZORPAY] checkTransaction: DB synced ${payment.status} -> ${dbStatus} (ref=${reference_id})`);
+      }
+
+      // If we just learned of a terminal outcome that was never forwarded, forward it now
+      // (idempotent — the queue de-dupes and the worker re-checks forwardedAt).
+      if (!payment.forwardedAt && (dbStatus === 'CAPTURED' || dbStatus === 'FAILED')) {
+        await enqueueForward({
+          gateway:           'razorpay',
+          paymentId:         payment.id,
+          referenceId:       payment.referenceId,
+          callbackUrl:       payment.callbackUrl,
+          amount:            parseFloat(payment.amount),
+          status:            dbStatus === 'CAPTURED' ? 'TXN' : 'FAILED',
+          utr:               dbStatus === 'CAPTURED' ? (utr || null) : null,
+          paymentIdExternal: paymentIdExternal || null,
+        });
+      }
+    } catch (err) {
+      logger.warn(`[RAZORPAY] checkTransaction: live status failed for ${reference_id} — ${err.message}; returning DB state`);
+    }
+
     // Legacy rows may still carry 'FORWARDED' (original outcome unrecoverable) — treat as success.
-    const isSuccess      = liveStatus === 'CAPTURED' || liveStatus === 'FORWARDED';
-    const accuzpayStatus = isSuccess ? 'TXN' : liveStatus;  // 'FAILED'/'PENDING' pass through as-is
-    const utr            = isSuccess ? payment.utr : null;
+    const isSuccess      = dbStatus === 'CAPTURED' || dbStatus === 'FORWARDED';
+    const accuzpayStatus = isSuccess ? 'TXN' : dbStatus;  // 'FAILED'/'PENDING' pass through as-is
+    const respUtr        = isSuccess ? utr : null;
 
     const responseBody = {
       success:              true,
       reference_id:         payment.referenceId,
       status:               accuzpayStatus,
-      razorpay_status:      liveStatus,
+      razorpay_status:      dbStatus,
       razorpay_order_id:    payment.razorpayOrderId,
-      razorpay_payment_id:  payment.razorpayPaymentId,
+      razorpay_payment_id:  paymentIdExternal,
       upi_intent_uri:       payment.upiIntentUri,
       forwarded:            !!payment.forwardedAt,
       amount:               parseFloat(payment.amount),
-      utr,
+      utr:                  respUtr,
     };
 
     // Downstream transaction-check response — logged gateway-wise for visibility.

@@ -5,6 +5,7 @@ const {
   createHdfcOrder,
   initiateUpiIntent,
   buildUpiIntentUri,
+  getHdfcOrderStatus,
 } = require('./hdfc.service');
 const { enqueueForward, enqueueInvoice } = require('../../../queues');
 const { ensureInvoice } = require('./accuzpay.invoice');
@@ -177,15 +178,51 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Return DB state — kept current by the (trusted) webhook. No live gateway call.
-    // `status` now holds the real HDFC/Juspay outcome (we no longer clobber it with the
-    // FORWARDED delivery sentinel); forwarding is tracked separately via forwardedAt.
-    const hdfcStatus     = payment.status;
-    const FAILURE        = ['AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'];
+    const FAILURE = ['AUTHORIZATION_FAILED', 'AUTHENTICATION_FAILED', 'JUSPAY_DECLINED'];
+
+    // Live pass-through: query HDFC (Juspay) on every hit, return that, and sync the DB if it
+    // changed. Falls back to stored DB state if the live call fails so the endpoint stays up.
+    let hdfcStatus = payment.status;
+    let utr        = payment.utr;
+
+    try {
+      const hdfcData   = await getHdfcOrderStatus(payment.hdfcOrderId, payment.customerId);
+      const liveStatus = hdfcData?.status || payment.status;
+      const liveUtr    = hdfcData?.payment_gateway_response?.rrn || hdfcData?.rrn || null;
+      logger.info(`[HDFC-ACCUZPAY] checkTransaction: live status=${liveStatus} (ref=${reference_id})`);
+
+      hdfcStatus = liveStatus;
+      utr        = liveStatus === 'CHARGED' ? (liveUtr || payment.utr) : payment.utr;
+
+      // Sync DB when the live view differs from what we stored.
+      if (liveStatus !== payment.status || (utr && utr !== payment.utr)) {
+        await prisma.accuzpayPayment.update({
+          where: { id: payment.id },
+          data:  { status: liveStatus, utr: utr || null },
+        });
+        logger.info(`[HDFC-ACCUZPAY] checkTransaction: DB synced ${payment.status} -> ${liveStatus} (ref=${reference_id})`);
+      }
+
+      // Terminal outcome not yet forwarded → forward now (idempotent via queue + forwardedAt).
+      if (!payment.forwardedAt && (liveStatus === 'CHARGED' || FAILURE.includes(liveStatus))) {
+        await enqueueForward({
+          gateway:     'hdfc',
+          paymentId:   payment.id,
+          referenceId: payment.referenceId,
+          callbackUrl: payment.callbackUrl,
+          amount:      parseFloat(payment.amount),
+          status:      liveStatus === 'CHARGED' ? 'TXN' : 'FAILED',
+          utr:         liveStatus === 'CHARGED' ? (utr || null) : null,
+        });
+      }
+    } catch (err) {
+      logger.warn(`[HDFC-ACCUZPAY] checkTransaction: live status failed for ${reference_id} — ${err.message}; returning DB state`);
+    }
+
     // Legacy rows may still carry 'FORWARDED' (original terminal status unrecoverable) — treat as success.
     const isSuccess      = hdfcStatus === 'CHARGED' || hdfcStatus === 'FORWARDED';
     const accuzpayStatus = isSuccess ? 'TXN' : FAILURE.includes(hdfcStatus) ? 'FAILED' : hdfcStatus;
-    const utr            = isSuccess ? payment.utr : null;
+    const respUtr        = isSuccess ? utr : null;
 
     const responseBody = {
       success:      true,
@@ -194,7 +231,7 @@ exports.checkAccuzpayTransaction = async (req, res, next) => {
       hdfc_status:  hdfcStatus,
       forwarded:    !!payment.forwardedAt,
       amount:       parseFloat(payment.amount),
-      utr,
+      utr:          respUtr,
       hdfcOrderId:  payment.hdfcOrderId,
     };
 
