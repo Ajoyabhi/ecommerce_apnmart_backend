@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const puppeteer = require('puppeteer-core');
 const logger = require('../utils/logger');
+const { isFakeAddressEnabled, buildFakeShippingAddress } = require('./fake-address');
 
 const INVOICES_DIR = path.join(__dirname, '..', '..', 'uploads', 'invoices');
 const LOGO_PATH = path.join(__dirname, '..', '..', 'product_images', 'brand_logo', 'apnamart_logo.png');
@@ -132,6 +133,9 @@ function getInvoiceFilePath(orderNumber) {
 }
 
 function invoiceExists(orderNumber) {
+    // TESTING: when fake-address mode is on we want a freshly randomized address
+    // on every download, so never treat a cached PDF as valid.
+    if (isFakeAddressEnabled()) return false;
     return fs.existsSync(getInvoiceFilePath(orderNumber));
 }
 
@@ -481,6 +485,15 @@ function findChromiumExecutable() {
 }
 
 async function generateInvoicePdf(order) {
+    // TESTING: replace the real buyer address with a random Indian one.
+    if (isFakeAddressEnabled()) {
+        try {
+            const fakeAddress = await buildFakeShippingAddress();
+            order = { ...order, shippingAddress: fakeAddress };
+        } catch (err) {
+            logger.error(`[FAKE-ADDRESS] Failed to build fake address, using original: ${err.message}`);
+        }
+    }
     const html = buildInvoiceHtml(order);
     const executablePath = findChromiumExecutable();
     if (!executablePath) {
