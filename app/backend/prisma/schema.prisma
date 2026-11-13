@@ -435,3 +435,65 @@ model CodOtp {
   resendAt   DateTime? // rate limit: next resend allowed after this time
   createdAt  DateTime  @default(now())
 }
+
+// RapidPay collection (payin) — AccuzPay downstream
+model RapidpayPayment {
+  id              String    @id @default(uuid())
+
+  referenceId     String    @unique   // AccuzPay's reference_id
+  rapidpayOrderId String    @unique   // our reference_id sent to RapidPay (RPC…)
+  providerTxnId   String?             // RapidPay's own txn id, once known
+  upiIntentUri    String?   @db.Text
+
+  customerId      String
+  amount          Decimal   @db.Decimal(10, 2)
+  status          String    @default("PENDING")  // PENDING | SUCCESS | FAILED
+  utr             String?
+  failureReason   String?
+  callbackUrl     String
+
+  customerName    String?
+  customerEmail   String?
+  customerPhone   String?
+
+  rapidpayRaw     Json?
+  forwardedAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// RapidPay disbursement (payout) — AccuzPay downstream
+model RapidpayPayout {
+  id                  String    @id @default(uuid())
+
+  referenceId         String    @unique   // AccuzPay's reference_id
+  rapidpayPayoutId    String    @unique   // our reference_id sent to RapidPay (RPD…)
+  providerTxnId       String?
+  utr                 String?
+
+  amount              Decimal   @db.Decimal(10, 2)
+  mode                String?             // request_type from AccuzPay (IMPS/NEFT…)
+  status              String    @default("PENDING") // PENDING | PROCESSING | SUCCESS | FAILED
+  failureReason       String?
+  callbackUrl         String
+
+  beneficiaryName     String?
+  beneficiaryAccount  String?
+  beneficiaryIfsc     String?
+  beneficiaryBankName String?
+  beneficiaryPhone    String?
+  beneficiaryEmail    String?
+
+  providerRaw         Json?
+  forwardedAt         DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}

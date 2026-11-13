@@ -52,6 +52,8 @@ const HDFC_CALLBACK_PATHS = [
     '/api/v1/payments/hdfc/pg-notify',    // UPI accuzpay callback
     '/api/v1/payments/hdfc/webhook',      // generic webhook
     '/api/v1/payments/airpay/ap-ipn',     // AirPay IPN callback
+    '/api/v1/payments/rapidpay/rpp-webhook',        // RapidPay collection callback
+    '/api/v1/payments/rapidpay/payout/rpp-webhook', // RapidPay disbursement callback
 ];
 app.use((req, res, next) => {
     if (HDFC_CALLBACK_PATHS.includes(req.path)) {

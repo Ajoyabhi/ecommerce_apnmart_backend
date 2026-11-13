@@ -8,6 +8,8 @@ const MODEL_BY_GATEWAY = {
   airpay:   'airpayPayment',
   razorpay: 'razorpayPayment',
   payout:   'payoutTransaction',
+  rapidpay:        'rapidpayPayment',
+  rapidpay_payout: 'rapidpayPayout',
 };
 
 /**
