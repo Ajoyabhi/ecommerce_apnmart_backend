@@ -78,7 +78,8 @@ function normalizeStatus(raw) {
 // Status payload → normalized view shared by collection and disbursement.
 function parseStatusPayload(payload) {
   const p = Array.isArray(payload) ? payload[0] : (payload || {});
-  const rawStatus = pick(p, 'txn_status', 'status', 'transaction_status', 'payment_status');
+  // Confirmed live: collection/status → payload.get_intent_status; collection/initiate → payload.status
+  const rawStatus = pick(p, 'get_intent_status', 'txn_status', 'status', 'transaction_status', 'payment_status');
   return {
     status:       normalizeStatus(rawStatus),
     rawStatus:    rawStatus || null,
@@ -88,6 +89,43 @@ function parseStatusPayload(payload) {
     message:      pick(p, 'message', 'remarks', 'reason', 'response_message'),
     raw:          p,
   };
+}
+
+// ─── Webhook trust + polling budget ──────────────────────────────────────────
+
+// RapidPay webhook source IPs (confirmed: 98.130.9.92). Comma-separated override.
+// req.ip is the real client IP: nginx sets X-Forwarded-For, app has trust proxy = 1.
+function webhookIps() {
+  return (process.env.RAPIDPAY_WEBHOOK_IPS || '98.130.9.92')
+    .split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function isTrustedWebhookIp(req) {
+  const ip = String(req.ip || '').replace(/^::ffff:/, '');
+  return webhookIps().includes(ip);
+}
+
+// Missed-webhook reconciliation budget for the AccuzPay check endpoints:
+//  - terminal rows (SUCCESS/FAILED) never hit RapidPay
+//  - PENDING rows hit RapidPay only once they are older than
+//    RAPIDPAY_LIVE_CHECK_AFTER_SEC (default 180s — a normal webhook arrives in seconds)
+//  - and then at most once per RAPIDPAY_LIVE_CHECK_INTERVAL_SEC (default 60s) per txn,
+//    shared across all pm2 workers via a Redis SET NX lock.
+async function shouldLiveCheck(row, kind) {
+  if (row.status !== 'PENDING' && row.status !== 'PROCESSING') return false;
+
+  const afterSec    = parseInt(process.env.RAPIDPAY_LIVE_CHECK_AFTER_SEC || '180', 10);
+  const intervalSec = parseInt(process.env.RAPIDPAY_LIVE_CHECK_INTERVAL_SEC || '60', 10);
+  if (Date.now() - new Date(row.createdAt).getTime() < afterSec * 1000) return false;
+
+  try {
+    const { redisClient } = require('../../../config/database');
+    const ok = await redisClient.set(`rapidpay:livecheck:${kind}:${row.id}`, '1', { NX: true, EX: intervalSec });
+    return ok === 'OK';
+  } catch (err) {
+    logger.warn(`[RAPIDPAY] livecheck lock unavailable (${err.message}) — skipping live check`);
+    return false;
+  }
 }
 
 // ─── Collection (payin) ───────────────────────────────────────────────────────
@@ -168,4 +206,7 @@ module.exports = {
   checkDisbursementStatus,
   getDisbursementBalance,
   normalizeStatus,
+  parseStatusPayload,
+  isTrustedWebhookIp,
+  shouldLiveCheck,
 };

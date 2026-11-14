@@ -4,6 +4,9 @@ const {
   initiateCollection,
   checkCollectionStatus,
   getCollectionBalance,
+  parseStatusPayload,
+  isTrustedWebhookIp,
+  shouldLiveCheck,
 } = require('./rapidpay.service');
 const { enqueueForward } = require('../../../queues');
 
@@ -29,15 +32,28 @@ function forwardCollection(payment, status, { utr, providerTxnId, errorMessage }
   });
 }
 
-// Verify live with RapidPay, sync the row, forward terminal outcomes once.
-// Returns the refreshed row.
+// Fetch live status from RapidPay and apply it. Used only as a fallback —
+// webhooks are the primary confirmation path.
 async function syncCollection(payment) {
   const live = await checkCollectionStatus(payment.rapidpayOrderId);
+  return applyCollectionStatus(payment, live);
+}
 
+// Apply a parsed status (from a trusted webhook or a live check), forward
+// terminal outcomes once. Returns the refreshed row.
+async function applyCollectionStatus(payment, live) {
   // Never downgrade a terminal row back to PENDING on an ambiguous live answer.
   const isTerminal    = payment.status === 'SUCCESS' || payment.status === 'FAILED';
-  const status        = (isTerminal && live.status === 'PENDING') ? payment.status : live.status;
+  let   status        = (isTerminal && live.status === 'PENDING') ? payment.status : live.status;
   const utr           = live.utr || payment.utr;
+
+  // status returns txn_amount ("100.00") once paid — never mark SUCCESS on an amount mismatch.
+  const paid = live.amount != null ? parseFloat(live.amount) : null;
+  if (status === 'SUCCESS' && payment.status !== 'SUCCESS' && paid != null
+      && Math.abs(paid - parseFloat(payment.amount)) > 0.01) {
+    logger.error({ referenceId: payment.referenceId, expected: payment.amount, paid }, '[RAPIDPAY] amount mismatch — not marking SUCCESS');
+    status = 'PENDING';
+  }
   const providerTxnId = live.providerTxnId || payment.providerTxnId;
 
   const updated = await prisma.rapidpayPayment.update({
@@ -140,16 +156,20 @@ exports.initiateRapidpayPayin = async (req, res, next) => {
   }
 };
 
-// ─── 2. RapidPay callback — treated as a trigger only ────────────────────────
-// The callback format/signing is undocumented, so we never trust its body:
-// we extract the reference_id and re-verify via /collection/status.
+// ─── 2. RapidPay callback — PRIMARY confirmation path ────────────────────────
+// From an allowlisted RapidPay IP with a terminal status → settle straight from
+// the payload (no RapidPay API call). Only when the sender isn't allowlisted, or
+// the body carries no usable terminal status, do we make ONE live status call.
 
 exports.handleRapidpayWebhook = async (req, res) => {
   try {
     const body = req.body || {};
     const node = body.payload || body.data || body;
     const ref  = node.reference_id || node.referenceId || node.order_id || body.reference_id || null;
-    logger.info({ ref, body }, '[RAPIDPAY] collection webhook received');
+    const trusted = isTrustedWebhookIp(req);
+    logger.info({ ref, ip: req.ip, trusted, body }, '[RAPIDPAY] collection webhook received');
+    // Payload is undocumented — also write raw to stdout so it lands in the pm2 log.
+    console.log(`[RAPIDPAY] collection webhook raw ip=${req.ip} trusted=${trusted} headers=${JSON.stringify(req.headers)} body=${JSON.stringify(body)}`);
 
     if (!ref) {
       logger.warn('[RAPIDPAY] collection webhook: no reference_id — ignoring');
@@ -168,10 +188,17 @@ exports.handleRapidpayWebhook = async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
+    const fromBody = parseStatusPayload(node);
     try {
-      await syncCollection(payment);
+      if (trusted && fromBody.status !== 'PENDING') {
+        await applyCollectionStatus(payment, { ...fromBody, raw: body });
+        logger.info(`[RAPIDPAY] collection webhook: settled from payload — ${payment.referenceId} → ${fromBody.status}`);
+      } else {
+        await syncCollection(payment);
+        logger.info(`[RAPIDPAY] collection webhook: settled via live check (trusted=${trusted}, bodyStatus=${fromBody.rawStatus})`);
+      }
     } catch (err) {
-      logger.error(`[RAPIDPAY] collection webhook: status verify failed for ${ref} — ${err.message}; not forwarding`);
+      logger.error(`[RAPIDPAY] collection webhook: settle failed for ${ref} — ${err.message}; not forwarding`);
     }
     return res.status(200).json({ received: true });
   } catch (error) {
@@ -194,11 +221,15 @@ exports.checkRapidpayTransaction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Live pass-through with DB fallback (same as AirPay / Razorpay).
-    try {
-      payment = await syncCollection(payment);
-    } catch (err) {
-      logger.warn(`[RAPIDPAY-ACCUZPAY] checkTransaction: live status failed for ${reference_id} — ${err.message}; returning DB state`);
+    // DB-first: the webhook keeps the row current. Hit RapidPay only for a row that
+    // is still PENDING well past the normal webhook window (missed-webhook
+    // reconciliation), and at most once per interval per txn across all workers.
+    if (await shouldLiveCheck(payment, 'collection')) {
+      try {
+        payment = await syncCollection(payment);
+      } catch (err) {
+        logger.warn(`[RAPIDPAY-ACCUZPAY] checkTransaction: live status failed for ${reference_id} — ${err.message}; returning DB state`);
+      }
     }
 
     const isSuccess = payment.status === 'SUCCESS';

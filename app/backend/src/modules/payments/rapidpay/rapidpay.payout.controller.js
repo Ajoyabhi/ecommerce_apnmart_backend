@@ -4,6 +4,9 @@ const {
   initiateDisbursement,
   checkDisbursementStatus,
   getDisbursementBalance,
+  parseStatusPayload,
+  isTrustedWebhookIp,
+  shouldLiveCheck,
 } = require('./rapidpay.service');
 const { enqueueForward } = require('../../../queues');
 
@@ -140,14 +143,19 @@ exports.initiateRapidpayPayout = async (req, res, next) => {
   }
 };
 
-// ─── 2. RapidPay disbursement callback — trigger only, re-verified ───────────
+// ─── 2. RapidPay disbursement callback — PRIMARY confirmation path ───────────
+// Allowlisted IP + terminal status in the body → settle from payload, no API call.
+// Otherwise ONE live status call.
 
 exports.handleRapidpayPayoutWebhook = async (req, res) => {
   try {
     const body = req.body || {};
     const node = body.payload || body.data || body;
     const ref  = node.reference_id || node.referenceId || body.reference_id || null;
-    logger.info({ ref, body }, '[RAPIDPAY-PAYOUT] webhook received');
+    const trusted = isTrustedWebhookIp(req);
+    logger.info({ ref, ip: req.ip, trusted, body }, '[RAPIDPAY-PAYOUT] webhook received');
+    // Payload is undocumented — also write raw to stdout so it lands in the pm2 log.
+    console.log(`[RAPIDPAY-PAYOUT] webhook raw ip=${req.ip} trusted=${trusted} headers=${JSON.stringify(req.headers)} body=${JSON.stringify(body)}`);
 
     if (!ref) return res.status(200).json({ received: true });
 
@@ -156,11 +164,16 @@ exports.handleRapidpayPayoutWebhook = async (req, res) => {
     });
     if (!payout || payout.forwardedAt) return res.status(200).json({ received: true });
 
+    const fromBody = parseStatusPayload(node);
     try {
-      const verified = await checkDisbursementStatus(payout.rapidpayPayoutId);
-      await applyVerifiedStatus(payout, verified);
+      if (trusted && fromBody.status !== 'PENDING') {
+        await applyVerifiedStatus(payout, { ...fromBody, raw: body });
+      } else {
+        const verified = await checkDisbursementStatus(payout.rapidpayPayoutId);
+        await applyVerifiedStatus(payout, verified);
+      }
     } catch (err) {
-      logger.error(`[RAPIDPAY-PAYOUT] webhook: status verify failed for ${ref} — ${err.message}; not forwarding`);
+      logger.error(`[RAPIDPAY-PAYOUT] webhook: settle failed for ${ref} — ${err.message}; not forwarding`);
     }
     return res.status(200).json({ received: true });
   } catch (error) {
@@ -183,7 +196,8 @@ exports.checkRapidpayPayout = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Payout not found' });
     }
 
-    if (payout.status === 'PENDING' || payout.status === 'PROCESSING') {
+    // DB-first; live check only for stale in-flight rows, throttled (see shouldLiveCheck).
+    if (await shouldLiveCheck(payout, 'payout')) {
       try {
         const verified = await checkDisbursementStatus(payout.rapidpayPayoutId);
         payout = await applyVerifiedStatus(payout, verified);
