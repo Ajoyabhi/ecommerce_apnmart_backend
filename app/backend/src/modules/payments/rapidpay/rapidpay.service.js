@@ -78,9 +78,9 @@ function normalizeStatus(raw) {
 // Status payload → normalized view shared by collection and disbursement.
 function parseStatusPayload(payload) {
   const p = Array.isArray(payload) ? payload[0] : (payload || {});
-  // Confirmed live: webhook → event_status; collection/status → payload.get_intent_status;
-  // collection/initiate → payload.status
-  const rawStatus = pick(p, 'event_status', 'get_intent_status', 'txn_status', 'status', 'transaction_status', 'payment_status');
+  // Confirmed live: collection webhook → event_status; collection/status → payload.get_intent_status;
+  // collection/initiate → payload.status; disbursement initiate + status → payload.payout_status
+  const rawStatus = pick(p, 'event_status', 'get_intent_status', 'payout_status', 'txn_status', 'status', 'transaction_status', 'payment_status');
   return {
     status:       normalizeStatus(rawStatus),
     rawStatus:    rawStatus || null,
