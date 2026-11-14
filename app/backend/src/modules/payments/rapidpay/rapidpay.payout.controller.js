@@ -11,6 +11,11 @@ const {
 const { enqueueForward } = require('../../../queues');
 
 // Our id sent to RapidPay as the disbursement `reference_id`.
+// RapidPay requires phone + email on every payout. They are fixed company contact
+// details (not the beneficiary's) — AccuzPay's email/mobile are ignored for RapidPay.
+const PAYOUT_EMAIL = process.env.RAPIDPAY_PAYOUT_EMAIL || 'support@anpamart.com';
+const PAYOUT_PHONE = process.env.RAPIDPAY_PAYOUT_PHONE || '9305697776';
+
 function generateRapidpayPayoutId() {
   return `RPD${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
     .slice(0, 30)
@@ -55,14 +60,14 @@ async function applyVerifiedStatus(payout, verified) {
 // ─── 1. Initiate disbursement — AccuzPay calls this ──────────────────────────
 // Same AccuzPay payload as /payout/initiate (MizorPay):
 //   { reference_id, amount, account_number, account_ifsc, bank_name,
-//     beneficiary_name, request_type, email, mobile }
+//     beneficiary_name, request_type }   (email/mobile, if sent, are ignored — see PAYOUT_EMAIL/PHONE)
 
 exports.initiateRapidpayPayout = async (req, res, next) => {
   try {
     const {
       reference_id, amount,
       account_number, account_ifsc, bank_name, beneficiary_name,
-      request_type, email, mobile,
+      request_type,
     } = req.body;
 
     const callback_url = process.env.ACCUZPAY_PAYOUT_CALLBACK_URL || process.env.ACCUZPAY_CALLBACK_URL;
@@ -71,10 +76,10 @@ exports.initiateRapidpayPayout = async (req, res, next) => {
       return res.status(500).json({ success: false, message: 'Payout gateway misconfigured — callback URL missing' });
     }
 
-    if (!reference_id || !amount || !account_number || !account_ifsc || !bank_name || !beneficiary_name || !email || !mobile) {
+    if (!reference_id || !amount || !account_number || !account_ifsc || !bank_name || !beneficiary_name) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: reference_id, amount, account_number, account_ifsc, bank_name, beneficiary_name, email, mobile',
+        message: 'Missing required fields: reference_id, amount, account_number, account_ifsc, bank_name, beneficiary_name',
       });
     }
 
@@ -84,7 +89,6 @@ exports.initiateRapidpayPayout = async (req, res, next) => {
     }
 
     const rapidpayPayoutId = generateRapidpayPayoutId();
-    const beneMobile       = String(mobile).replace(/\D/g, '').slice(-10);
 
     // Persist PENDING first so a callback that races the response still finds the row.
     const payout = await prisma.rapidpayPayout.create({
@@ -99,8 +103,8 @@ exports.initiateRapidpayPayout = async (req, res, next) => {
         beneficiaryAccount:  String(account_number),
         beneficiaryIfsc:     account_ifsc,
         beneficiaryBankName: bank_name,
-        beneficiaryEmail:    email,
-        beneficiaryPhone:    beneMobile,
+        beneficiaryEmail:    PAYOUT_EMAIL,
+        beneficiaryPhone:    PAYOUT_PHONE,
       },
     });
 
@@ -113,8 +117,8 @@ exports.initiateRapidpayPayout = async (req, res, next) => {
         accountNumber:   account_number,
         bankName:        bank_name,       // RapidPay's example uses the human name ("HDFC Bank")
         ifsc:            account_ifsc,
-        phone:           beneMobile,
-        email,
+        phone:           PAYOUT_PHONE,
+        email:           PAYOUT_EMAIL,
       });
     } catch (err) {
       // Explicit rejection — RapidPay answered with envelope status_code FAILED (e.g.
