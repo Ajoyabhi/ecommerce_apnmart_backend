@@ -117,13 +117,36 @@ exports.initiateRapidpayPayout = async (req, res, next) => {
         email,
       });
     } catch (err) {
-      // Envelope FAILED / transport error at initiate → nothing was disbursed.
+      // Explicit rejection — RapidPay answered with envelope status_code FAILED (e.g.
+      // "System Downtime. Please try after sometime.") or an HTTP 4xx: nothing was
+      // created on their side (status lookup returns "order … not found").
+      const explicitReject = String(err.providerError?.status_code || '').toUpperCase() === 'FAILED'
+                          || (err.statusCode >= 400 && err.statusCode < 500);
+      if (explicitReject) {
+        await prisma.rapidpayPayout.update({
+          where: { id: payout.id },
+          data:  { status: 'FAILED', failureReason: err.message, providerRaw: err.providerError || null },
+        });
+        logger.warn({ reference_id, error: err.message }, '[RAPIDPAY-PAYOUT] rejected at initiate');
+        return res.status(502).json({ success: false, message: err.message, provider_error: err.providerError || null });
+      }
+
+      // Ambiguous (timeout / network / 5xx): RapidPay MAY have accepted the payout.
+      // Never report FAILED here — AccuzPay could retry and pay twice. Keep the row
+      // PROCESSING; the webhook (or a later /payout/rpp-check) resolves it.
       await prisma.rapidpayPayout.update({
         where: { id: payout.id },
-        data:  { status: 'FAILED', failureReason: err.message, providerRaw: err.providerError || null },
+        data:  { status: 'PROCESSING', failureReason: `initiate outcome unknown: ${err.message}` },
       });
-      logger.warn({ reference_id, error: err.message }, '[RAPIDPAY-PAYOUT] rejected at initiate');
-      return res.status(502).json({ success: false, message: err.message, provider_error: err.providerError || null });
+      logger.error({ reference_id, error: err.message }, '[RAPIDPAY-PAYOUT] initiate outcome unknown — kept PROCESSING');
+      return res.status(200).json({
+        success:            true,
+        reference_id,
+        rapidpay_payout_id: rapidpayPayoutId,
+        status:             'PROCESSING',
+        amount:             parseFloat(amount),
+        message:            'Payout submission outcome unknown — poll /payout/rpp-check; do NOT retry with a new reference_id',
+      });
     }
 
     const updated = await applyVerifiedStatus(payout, result);
